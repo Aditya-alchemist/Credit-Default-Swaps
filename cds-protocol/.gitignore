@@ -1,0 +1,21 @@
+# Environment files
+.env
+
+# Foundry
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+contracts/lib/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node/Vite
+frontend/node_modules/
+frontend/dist/
+
+# OS/editor
+.DS_Store
+Thumbs.db
