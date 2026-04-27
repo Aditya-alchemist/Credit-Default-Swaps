@@ -27,6 +27,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
         EXPIRED
     }
 
+    // forge-lint: disable-next-line(pascal-case-struct)
     struct CDSPosition {
         address buyer;              // protection buyer
         address seller;             // protection seller (underwriter)
@@ -44,7 +45,9 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
     //  STATE
     // ─────────────────────────────────────────────
 
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
     IERC20 public immutable usdc;
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
     ICDSToken public immutable cdsToken;
 
     address public settlementEngine;  // only this can execute payouts
@@ -135,34 +138,54 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
     // ─────────────────────────────────────────────
 
     modifier onlySettlementEngine() {
-        if (msg.sender != settlementEngine) revert OnlySettlementEngine();
+        _onlySettlementEngine();
         _;
+    }
+
+    function _onlySettlementEngine() internal view {
+        if (msg.sender != settlementEngine) revert OnlySettlementEngine();
     }
 
     modifier onlyMarginEngine() {
-        if (msg.sender != marginEngine) revert OnlyMarginEngine();
+        _onlyMarginEngine();
         _;
+    }
+
+    function _onlyMarginEngine() internal view {
+        if (msg.sender != marginEngine) revert OnlyMarginEngine();
     }
 
     modifier onlyPremiumEngine() {
-        if (msg.sender != premiumEngine) revert OnlyPremiumEngine();
+        _onlyPremiumEngine();
         _;
     }
 
+    function _onlyPremiumEngine() internal view {
+        if (msg.sender != premiumEngine) revert OnlyPremiumEngine();
+    }
+
     modifier enginesSet() {
+        _enginesSet();
+        _;
+    }
+
+    function _enginesSet() internal view {
         if (
             settlementEngine == address(0) ||
             marginEngine == address(0) ||
             premiumEngine == address(0)
         ) revert EnginesNotSet();
-        _;
     }
 
     modifier positionActive(uint256 positionId) {
+        _positionActive(positionId);
+        _;
+    }
+
+    function _positionActive(uint256 positionId) internal view {
         if (positions[positionId].state != PositionState.ACTIVE &&
             positions[positionId].state != PositionState.MARGIN_CALL)
             revert PositionNotActive(positionId);
-        _;
     }
 
     // ─────────────────────────────────────────────
@@ -225,6 +248,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
      * @param spreadBps        annual premium in basis points
      * @param maturityDays     duration of the CDS in days
      */
+    // forge-lint: disable-next-line(mixed-case-function)
     function openCDS(
         address buyer,
         address referenceEntity,
