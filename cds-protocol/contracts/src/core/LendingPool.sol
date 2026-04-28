@@ -76,6 +76,7 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
 
     // CDS protection spread charged on deposits (100bps = 1%/year)
     uint256 public constant CDS_PROTECTION_SPREAD_BPS = 100;
+    uint256 public constant CDS_PROTECTION_TENOR_DAYS = 365;
 
     // WETH/USDC price — in production replaced by Chainlink oracle
     // 1 WETH = 2000 USDC (mock price for testnet)
@@ -448,24 +449,28 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
 
         if (loan.state != LoanState.ACTIVE) revert LoanNotActive(loanId);
 
+        // accrue any pending interest first
+        _accrueInterest(loanId);
+
         // check health factor is below 1.0
         uint256 hf = getHealthFactor(loanId);
         if (hf >= 10000) revert HealthFactorHealthy(hf);  // HF >= 1.0 (in bps)
 
-        // accrue any pending interest
-        _accrueInterest(loanId);
-
         uint256 totalOwed = loan.loanAmount + loan.accruedInterest;
         uint256 collateral = loan.collateralAmount;
 
-        // liquidator gets 5% bonus on collateral
-        uint256 liquidatorBonus = (collateral * 500) / 10000;
-        uint256 collateralToLiquidator = collateral + liquidatorBonus > collateral
-            ? collateral  // capped at full collateral
-            : collateral;
+        // liquidator gets collateral worth 105% of the debt when available,
+        // with any leftover collateral returned to the borrower.
+        uint256 liquidationValueUsdc = (totalOwed * 10500) / 10000;
+        uint256 collateralToLiquidator = (liquidationValueUsdc * 1e18) / wethPriceUsdc;
+        if (collateralToLiquidator > collateral) {
+            collateralToLiquidator = collateral;
+        }
+        uint256 collateralToBorrower = collateral - collateralToLiquidator;
 
         // ── Effects ───────────────────────────────
         loan.state = LoanState.LIQUIDATED;
+        loan.collateralAmount = 0;
         totalBorrowed -= loan.loanAmount;
         totalInterestCollected += loan.accruedInterest;
         totalSupplied += loan.accruedInterest;
@@ -476,6 +481,9 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
 
         // liquidator receives WETH collateral
         weth.safeTransfer(msg.sender, collateralToLiquidator);
+        if (collateralToBorrower > 0) {
+            weth.safeTransfer(loan.borrower, collateralToBorrower);
+        }
 
         emit Liquidated(loanId, loan.borrower, msg.sender, collateralToLiquidator);
     }
@@ -503,20 +511,24 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
         if (pos.amount == 0) revert SupplyNotActive(supplyId);
         if (pos.cdsProtectionEnabled) revert CDSAlreadyEnabled(supplyId);
 
-        // CDS protection spread premium charged on deposit amount
-        // This is tracked and deducted from lender's net yield
-        // The actual CDS position is opened with LendingPool as seller
-        // and the lender as buyer, with this pool as reference entity
+        uint256 requiredCollateral = (pos.amount * 12000) / 10000;
+        
+        // pull collateral from lender into pool first
+        usdc.safeTransferFrom(msg.sender, address(this), requiredCollateral);
+        usdc.forceApprove(address(cdsVault), requiredCollateral);
+
+        uint256 cdsPositionId = cdsVault.openCDS(
+            msg.sender,
+            address(this),
+            pos.amount,
+            CDS_PROTECTION_SPREAD_BPS,
+            CDS_PROTECTION_TENOR_DAYS
+        );
 
         pos.cdsProtectionEnabled = true;
+        pos.cdsPositionId = cdsPositionId;
 
-        // Note: In full implementation, CDSVault.openCDS() is called here
-        // with address(this) as reference entity, msg.sender as buyer,
-        // and protocol treasury as seller. For now we record the flag
-        // and deduct spread from yield calculations.
-        pos.cdsPositionId = supplyId; // placeholder until CDSVault integration
-
-        emit CDSProtectionEnabled(supplyId, supplyId);
+        emit CDSProtectionEnabled(supplyId, cdsPositionId);
     }
 
     // ─────────────────────────────────────────────

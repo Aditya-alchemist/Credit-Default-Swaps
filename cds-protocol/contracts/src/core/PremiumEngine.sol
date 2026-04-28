@@ -37,6 +37,7 @@ contract PremiumEngine is ReentrancyGuard, Ownable {
 
 error NotDueYet(uint256 positionId, uint256 dueAt, uint256 currentTime);
 	error PositionNotActive(uint256 positionId);
+	error PositionAlreadyInitialized(uint256 positionId);
 	error ZeroAddress();
 	error OnlyCDSVault();
 
@@ -53,8 +54,11 @@ error NotDueYet(uint256 positionId, uint256 dueAt, uint256 currentTime);
 	}
 
 	function initializePosition(uint256 positionId) external {
-		nextPremiumDue[positionId] = block.timestamp;
-		emit PositionInitialized(positionId, block.timestamp);
+		if (msg.sender != address(cdsVault)) revert OnlyCDSVault();
+		if (nextPremiumDue[positionId] != 0) revert PositionAlreadyInitialized(positionId);
+
+		nextPremiumDue[positionId] = block.timestamp + PAYMENT_INTERVAL;
+		emit PositionInitialized(positionId, nextPremiumDue[positionId]);
 	}
 
 	function collectPremium(uint256 positionId) public nonReentrant {
@@ -64,6 +68,7 @@ error NotDueYet(uint256 positionId, uint256 dueAt, uint256 currentTime);
 		if (msg.sender != pos.buyer) revert PositionNotActive(positionId);
 
 		uint256 due = nextPremiumDue[positionId];
+		if (due == 0) revert PositionNotActive(positionId);
 		if (block.timestamp < due) revert NotDueYet(positionId, due, block.timestamp);
 
 		uint256 premium = SpreadMath.computePremium(pos.notional, pos.spreadBps, 90);

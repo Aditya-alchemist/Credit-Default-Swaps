@@ -6,6 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IPremiumEngine} from "../interfaces/IPremiumEngine.sol";
 
 interface ICDSToken {
     function mintPosition(address buyer, address seller, uint256 positionId) external;
@@ -127,7 +128,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
     error NotBuyer(uint256 positionId);
     error MaturityNotReached(uint256 maturity, uint256 current);
     error MaturityAlreadyPassed(uint256 maturity, uint256 current);
-    error OnlySettlementEngine();
+    error OnlyAuthorizedEngine();
     error OnlyMarginEngine();
     error OnlyPremiumEngine();
     error EnginesNotSet();
@@ -143,7 +144,9 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
     }
 
     function _onlySettlementEngine() internal view {
-        if (msg.sender != settlementEngine) revert OnlySettlementEngine();
+        if (msg.sender != settlementEngine && msg.sender != marginEngine) {
+            revert OnlyAuthorizedEngine();
+        }
     }
 
     modifier onlyMarginEngine() {
@@ -302,6 +305,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
 
         // mint CDSToken to both buyer (side=0) and seller (side=1)
         cdsToken.mintPosition(buyer, msg.sender, positionId);
+        IPremiumEngine(premiumEngine).initializePosition(positionId);
 
         emit PositionOpened(
             positionId,

@@ -80,10 +80,11 @@ event MarginCallIssued(
 			revert MarginCallWindowNotExpired(positionId, callTime + MARGIN_CALL_WINDOW);
 		}
 
+		uint256 ratioBeforeLiquidation = computeCurrentRatio(positionId);
 		marginCallTimestamp[positionId] = 0;
 		cdsVault.executePayout(positionId, 4000);
 
-		emit PositionLiquidated(positionId, computeCurrentRatio(positionId), block.timestamp);
+		emit PositionLiquidated(positionId, ratioBeforeLiquidation, block.timestamp);
 	}
 
 	function computeMtM(uint256 positionId) external view returns (uint256 mtm) {
