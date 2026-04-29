@@ -100,6 +100,7 @@ contract Deploy is Script {
             deployment.cdsVault,
             deployment.premiumEngine,
             deployment.marginEngine,
+            deployment.creditOracle,
             deployer
         ));
         console.log("LendingPool:", deployment.lendingPool);
@@ -109,8 +110,10 @@ contract Deploy is Script {
         console.log("=== Step 8: Token permissions ===");
         VaultShareToken(deployment.vaultShareToken).setVault(deployment.cdsVault);
         CreditOracle(deployment.creditOracle).setUpdater(keeper, true);
+        CreditOracle(deployment.creditOracle).setAuthorizedReporter(deployment.lendingPool, true);
         console.log("VaultShareToken vault set");
         console.log("CreditOracle keeper authorized");
+        console.log("CreditOracle lending pool reporter authorized");
 
         address wethUsdFeed = vm.envOr("CHAINLINK_WETH_USD", address(0));
         if (wethUsdFeed != address(0)) {

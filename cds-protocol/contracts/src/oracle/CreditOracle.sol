@@ -4,6 +4,13 @@ pragma solidity ^0.8.24;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CreditOracle is Ownable {
+	struct DefaultRecord {
+		uint256 loanId;
+		uint256 loanAmount;
+		uint256 timestamp;
+		bool exists;
+	}
+
 	struct CreditData {
 		uint256 score;
 		uint256 spreadBps;
@@ -17,8 +24,17 @@ contract CreditOracle is Ownable {
 
 	mapping(address => CreditData) public creditByEntity;
 	mapping(address => bool) public updaters;
+	mapping(address => bool) public authorizedReporters;
+	mapping(address => DefaultRecord) public borrowerDefaults;
 
 	event UpdaterSet(address indexed updater, bool allowed);
+	event AuthorizedReporterSet(address indexed reporter, bool allowed);
+	event LendingDefaultReported(
+		address indexed borrower,
+		uint256 indexed loanId,
+		uint256 loanAmount,
+		uint256 timestamp
+	);
 	event CreditDataUpdated(
 		address indexed entity,
 		uint256 score,
@@ -28,6 +44,7 @@ contract CreditOracle is Ownable {
 	);
 
 	error NotAuthorizedUpdater();
+	error NotAuthorizedReporter();
 	error RecoveryOutOfRange();
 
 	constructor(address _owner) Ownable(_owner) {}
@@ -37,15 +54,31 @@ contract CreditOracle is Ownable {
 		_;
 	}
 
+	modifier onlyAuthorizedReporter() {
+		_onlyAuthorizedReporter();
+		_;
+	}
+
 	function _onlyUpdaterOrOwner() internal view {
 		if (msg.sender != owner() && !updaters[msg.sender]) {
 			revert NotAuthorizedUpdater();
 		}
 	}
 
+	function _onlyAuthorizedReporter() internal view {
+		if (!authorizedReporters[msg.sender]) {
+			revert NotAuthorizedReporter();
+		}
+	}
+
 	function setUpdater(address updater, bool allowed) external onlyOwner {
 		updaters[updater] = allowed;
 		emit UpdaterSet(updater, allowed);
+	}
+
+	function setAuthorizedReporter(address reporter, bool allowed) external onlyOwner {
+		authorizedReporters[reporter] = allowed;
+		emit AuthorizedReporterSet(reporter, allowed);
 	}
 
 	function setCreditData(address entity, uint256 score, uint256 lambdaBps, uint256 recoveryBps)
@@ -70,6 +103,29 @@ contract CreditOracle is Ownable {
 		data.updatedAt = block.timestamp;
 
 		emit CreditDataUpdated(entity, data.score, data.lambdaBps, data.recoveryBps, defaulted_);
+	}
+
+	function reportLendingDefault(address borrower, uint256 loanId, uint256 loanAmount)
+		external
+		onlyAuthorizedReporter
+	{
+		borrowerDefaults[borrower] = DefaultRecord({
+			loanId: loanId,
+			loanAmount: loanAmount,
+			timestamp: block.timestamp,
+			exists: true
+		});
+
+		CreditData storage data = creditByEntity[borrower];
+		data.defaulted_ = true;
+		data.updatedAt = block.timestamp;
+
+		emit CreditDataUpdated(borrower, data.score, data.lambdaBps, data.recoveryBps, true);
+		emit LendingDefaultReported(borrower, loanId, loanAmount, block.timestamp);
+	}
+
+	function getBorrowerDefault(address borrower) external view returns (DefaultRecord memory) {
+		return borrowerDefaults[borrower];
 	}
 
 	function getCreditData(address entity)

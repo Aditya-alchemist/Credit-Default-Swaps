@@ -2,6 +2,13 @@
 pragma solidity ^0.8.24;
 
 interface ICreditOracle {
+	struct DefaultRecord {
+		uint256 loanId;
+		uint256 loanAmount;
+		uint256 timestamp;
+		bool exists;
+	}
+
 	function getSpread(address entity) external view returns (uint256 spreadBps);
 	function getCreditScore(address entity) external view returns (uint256 score);
 	function isCreditEventDeclared(address entity) external view returns (bool);
@@ -15,5 +22,8 @@ interface ICreditOracle {
 		view
 		returns (uint256 score, uint256 lambdaBps, uint256 recoveryBps, bool defaulted_);
 	function getRecoveryBps(address entity) external view returns (uint256);
+	function setAuthorizedReporter(address reporter, bool allowed) external;
+	function reportLendingDefault(address borrower, uint256 loanId, uint256 loanAmount) external;
+	function getBorrowerDefault(address borrower) external view returns (DefaultRecord memory);
 }
 

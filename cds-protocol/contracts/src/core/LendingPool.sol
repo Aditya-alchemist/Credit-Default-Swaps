@@ -10,6 +10,7 @@ import {ILendingToken} from "../interfaces/ILendingToken.sol";
 import {ICDSVault} from "../interfaces/ICDSVault.sol";
 import {IPremiumEngine} from "../interfaces/IPremiumEngine.sol";
 import {IMarginEngine} from "../interfaces/IMarginEngine.sol";
+import {ICreditOracle} from "../interfaces/ICreditOracle.sol";
 
 contract LendingPool is ReentrancyGuard, Pausable, Ownable {
     using SafeERC20 for IERC20;
@@ -61,6 +62,8 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
     IPremiumEngine public immutable premiumEngine;
     // forge-lint: disable-next-line(screaming-snake-case-immutable)
     IMarginEngine public immutable marginEngine;
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
+    ICreditOracle public immutable creditOracle;
 
     // LTV = 75% — borrower can borrow up to 75% of collateral value
     uint256 public constant LTV_BPS = 7500;
@@ -157,6 +160,13 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
         uint256 totalAccrued
     );
 
+    event BorrowerDefaulted(
+        address indexed borrower,
+        uint256 indexed loanId,
+        uint256 loanAmount,
+        uint256 timestamp
+    );
+
     // ─────────────────────────────────────────────
     //  ERRORS
     // ─────────────────────────────────────────────
@@ -185,6 +195,7 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
         address _cdsVault,
         address _premiumEngine,
         address _marginEngine,
+        address _creditOracle,
         address _owner
     ) Ownable(_owner) {
         if (_usdc == address(0)) revert ZeroAddress();
@@ -193,6 +204,7 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
         if (_cdsVault == address(0)) revert ZeroAddress();
         if (_premiumEngine == address(0)) revert ZeroAddress();
         if (_marginEngine == address(0)) revert ZeroAddress();
+        if (_creditOracle == address(0)) revert ZeroAddress();
 
         usdc = IERC20(_usdc);
         weth = IERC20(_weth);
@@ -200,6 +212,7 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
         cdsVault = ICDSVault(_cdsVault);
         premiumEngine = IPremiumEngine(_premiumEngine);
         marginEngine = IMarginEngine(_marginEngine);
+        creditOracle = ICreditOracle(_creditOracle);
 
         nextSupplyId = 1;
         nextLoanId = 1;
@@ -485,7 +498,18 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
             weth.safeTransfer(loan.borrower, collateralToBorrower);
         }
 
+        _triggerCDSSettlement(loan.borrower, loanId, loan.loanAmount);
+
         emit Liquidated(loanId, loan.borrower, msg.sender, collateralToLiquidator);
+    }
+
+    function _triggerCDSSettlement(
+        address borrower,
+        uint256 loanId,
+        uint256 loanAmount
+    ) internal {
+        creditOracle.reportLendingDefault(borrower, loanId, loanAmount);
+        emit BorrowerDefaulted(borrower, loanId, loanAmount, block.timestamp);
     }
 
     // ─────────────────────────────────────────────
