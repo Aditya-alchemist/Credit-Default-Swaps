@@ -242,10 +242,10 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
 
     /**
      * @notice Seller locks collateral and opens a CDS position.
-     *         Seller calls this — they lock collateral upfront.
-     *         Buyer address is passed as param (they agreed off-chain or via UI).
+     *         Buyer and seller are passed explicitly.
      *
      * @param buyer            address receiving protection
+     * @param seller           address providing collateral and selling protection
      * @param referenceEntity  protocol or wallet being insured
      * @param notional         coverage amount in USDC
      * @param spreadBps        annual premium in basis points
@@ -254,6 +254,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
     // forge-lint: disable-next-line(mixed-case-function)
     function openCDS(
         address buyer,
+        address seller,
         address referenceEntity,
         uint256 notional,
         uint256 spreadBps,
@@ -267,6 +268,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
     {
         // ── Checks ────────────────────────────────
         if (buyer == address(0)) revert ZeroAddress();
+        if (seller == address(0)) revert ZeroAddress();
         if (referenceEntity == address(0)) revert ZeroAddress();
         if (notional == 0) revert ZeroAmount();
         if (spreadBps == 0) revert ZeroAmount();
@@ -275,7 +277,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
         // minimum collateral = 120% of notional
         uint256 requiredCollateral = (notional * MIN_COLLATERAL_BPS) / 10000;
 
-        uint256 sellerBalance = usdc.balanceOf(msg.sender);
+        uint256 sellerBalance = usdc.balanceOf(seller);
         if (sellerBalance < requiredCollateral)
             revert InsufficientCollateral(requiredCollateral, sellerBalance);
 
@@ -286,7 +288,7 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
 
         positions[positionId] = CDSPosition({
             buyer: buyer,
-            seller: msg.sender,
+            seller: seller,
             referenceEntity: referenceEntity,
             notional: notional,
             spreadBps: spreadBps,
@@ -297,20 +299,20 @@ contract CDSVault is ReentrancyGuard, Pausable, Ownable {
             state: PositionState.ACTIVE
         });
 
-        sellerCollateral[msg.sender] += requiredCollateral;
+        sellerCollateral[seller] += requiredCollateral;
 
         // ── Interactions ──────────────────────────
         // pull collateral from seller
-        usdc.safeTransferFrom(msg.sender, address(this), requiredCollateral);
+        usdc.safeTransferFrom(seller, address(this), requiredCollateral);
 
         // mint CDSToken to both buyer (side=0) and seller (side=1)
-        cdsToken.mintPosition(buyer, msg.sender, positionId);
+        cdsToken.mintPosition(buyer, seller, positionId);
         IPremiumEngine(premiumEngine).initializePosition(positionId);
 
         emit PositionOpened(
             positionId,
             buyer,
-            msg.sender,
+            seller,
             referenceEntity,
             notional,
             spreadBps,

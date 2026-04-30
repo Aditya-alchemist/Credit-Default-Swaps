@@ -524,7 +524,7 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
      * @param supplyId  their supply position to protect
      */
     // forge-lint: disable-next-line(mixed-case-function)
-    function enableCDSProtection(uint256 supplyId)
+    function enableCDSProtection(uint256 supplyId, address seller)
         external
         nonReentrant
         whenNotPaused
@@ -534,15 +534,11 @@ contract LendingPool is ReentrancyGuard, Pausable, Ownable {
         if (pos.lender != msg.sender) revert NotLender(supplyId);
         if (pos.amount == 0) revert SupplyNotActive(supplyId);
         if (pos.cdsProtectionEnabled) revert CDSAlreadyEnabled(supplyId);
-
-        uint256 requiredCollateral = (pos.amount * 12000) / 10000;
-        
-        // pull collateral from lender into pool first
-        usdc.safeTransferFrom(msg.sender, address(this), requiredCollateral);
-        usdc.forceApprove(address(cdsVault), requiredCollateral);
+        if (seller == address(0)) revert ZeroAddress();
 
         uint256 cdsPositionId = cdsVault.openCDS(
             msg.sender,
+            seller,
             address(this),
             pos.amount,
             CDS_PROTECTION_SPREAD_BPS,

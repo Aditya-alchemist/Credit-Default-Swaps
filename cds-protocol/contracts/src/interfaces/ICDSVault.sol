@@ -26,6 +26,7 @@ interface ICDSVault {
 	// forge-lint: disable-next-line(mixed-case-function)
 	function openCDS(
 		address buyer,
+		address seller,
 		address referenceEntity,
 		uint256 notional,
 		uint256 spreadBps,
