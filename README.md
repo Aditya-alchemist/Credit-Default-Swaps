@@ -41,6 +41,12 @@ The **Credit Default Swap (CDS) Protocol** is a decentralized financial derivati
 
 ---
 
+
+
+https://github.com/user-attachments/assets/6ff2367c-7a65-4f5c-a237-2fd424d2f256
+
+
+
 ## System Architecture
 
 ```mermaid
