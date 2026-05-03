@@ -30,11 +30,34 @@ type OracleEntity = {
   defaulted: boolean;
   updatedAt: number;
   stale: boolean;
+  ageStale: boolean;
 };
 
 const toUsdc = (value: unknown) => Number(value ?? 0) / 1_000_000;
 const asNumber = (value: unknown) => Number(value ?? 0);
 const defaultProbability = (lambdaBps: number) => (1 - Math.exp(-lambdaBps / 10_000)) * 100;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const oracleRefreshIntervalSecs = 30 * 60;
+
+const formatRelativeOracleTime = (timestamp: number) => {
+  if (!timestamp) return "Never";
+  const delta = Math.max(0, Math.floor(Date.now() / 1000) - timestamp);
+  const minutes = Math.floor(delta / 60);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}h ${rest}m ago` : `${hours}h ago`;
+};
+
+const formatNextOracleUpdate = (timestamp: number) => {
+  if (!timestamp) return "Waiting for first keeper push";
+  const next = timestamp + oracleRefreshIntervalSecs;
+  const delta = next - Math.floor(Date.now() / 1000);
+  if (delta <= 0) return "Due now";
+  const minutes = Math.ceil(delta / 60);
+  return `Expected in ${minutes} min`;
+};
 
 const OracleMonitor: React.FC = () => {
   const { theme } = useTheme();
@@ -46,7 +69,7 @@ const OracleMonitor: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("http://127.0.0.1:8000/health")
+    fetch(`${apiBaseUrl}/health`)
       .then((response) => {
         if (!cancelled) setBackendHealth(response.ok ? "healthy" : "offline");
       })
@@ -113,7 +136,10 @@ const OracleMonitor: React.FC = () => {
 
   const entities: OracleEntity[] = entityStats.map((entity, index) => {
     const row = creditReads.data?.[index * 2]?.result as any;
-    const stale = Boolean(creditReads.data?.[index * 2 + 1]?.result);
+    const contractStale = Boolean(creditReads.data?.[index * 2 + 1]?.result);
+    const updatedAt = asNumber(row?.updatedAt ?? row?.[5]);
+    const ageStale =
+      !updatedAt || Math.floor(Date.now() / 1000) - updatedAt >= oracleRefreshIntervalSecs;
     return {
       ...entity,
       score: asNumber(row?.score ?? row?.[0]),
@@ -121,8 +147,9 @@ const OracleMonitor: React.FC = () => {
       lambdaBps: asNumber(row?.lambdaBps ?? row?.[2]),
       recoveryBps: asNumber(row?.recoveryBps ?? row?.[3]),
       defaulted: Boolean(row?.defaulted_ ?? row?.[4]),
-      updatedAt: asNumber(row?.updatedAt ?? row?.[5]),
-      stale,
+      updatedAt,
+      stale: contractStale || ageStale,
+      ageStale,
     };
   });
 
@@ -161,13 +188,8 @@ const OracleMonitor: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-8">
           <Metric title="Tracked Entities" value={String(entities.length)} subtitle={`${totalOpenPositions} CDS positions scanned`} icon="chart" />
           <Metric title="Oracle Contract" value={formatAddress(SEPOLIA_ADDRESSES.CreditOracle)} subtitle="CreditOracle on Sepolia" icon="oracle" />
-          <Metric title="Bot Signal" value={backendLabel} subtitle="Backend health endpoint" icon="admin" />
-          <Metric
-            title="Stale Entities"
-            value={String(entities.filter((entity) => entity.stale).length)}
-            subtitle="Oracle rows outside freshness window"
-            icon="alert"
-          />
+          <Metric title="Keeper Cadence" value="30 min" subtitle={`Backend ${backendLabel.toLowerCase()} · oracle refresh cycle`} icon="admin" />
+          <Metric title="Due Updates" value={String(entities.filter((entity) => entity.stale).length)} subtitle="Rows older than 30 min or contract-stale" icon="alert" />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -194,7 +216,7 @@ const OracleMonitor: React.FC = () => {
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="font-semibold">{formatAddress(entity.address)}</p>
                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${entity.stale ? "bg-yellow-500/15 text-yellow-300" : "bg-green-500/15 text-green-300"}`}>
-                      {entity.stale ? "Stale" : "Fresh"}
+                      {entity.stale ? "Due" : "Fresh"}
                     </span>
                   </div>
                   <p className={`text-xs ${selectedEntity?.address.toLowerCase() === entity.address.toLowerCase() ? "text-blue-100" : secondaryTextClass}`}>
@@ -215,7 +237,7 @@ const OracleMonitor: React.FC = () => {
                       <p className={secondaryTextClass}>Full address {selectedEntity.address}</p>
                     </div>
                     <span className={`rounded-lg px-4 py-2 text-sm font-semibold ${selectedEntity.defaulted ? "bg-red-500/10 text-red-400" : selectedEntity.stale ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400"}`}>
-                      {selectedEntity.defaulted ? "Defaulted" : selectedEntity.stale ? "Stale" : "Fresh"}
+                      {selectedEntity.defaulted ? "Defaulted" : selectedEntity.stale ? "Due for update" : "Fresh"}
                     </span>
                   </div>
 
@@ -224,10 +246,12 @@ const OracleMonitor: React.FC = () => {
                     <Detail label="Spread" value={selectedEntity.updatedAt ? `${selectedEntity.spreadBps} bps` : "-"} />
                     <Detail label="Default Probability" value={selectedEntity.updatedAt ? `${formatNumber(defaultProbability(selectedEntity.lambdaBps), 2)}%` : "-"} />
                     <Detail label="Recovery" value={selectedEntity.updatedAt ? `${formatNumber(selectedEntity.recoveryBps / 100, 2)}%` : "-"} />
-                    <Detail label="Last Update" value={selectedEntity.updatedAt ? formatDateTime(selectedEntity.updatedAt) : "Never"} />
+                    <Detail label="Last Oracle Push" value={selectedEntity.updatedAt ? formatRelativeOracleTime(selectedEntity.updatedAt) : "Never"} />
+                    <Detail label="Next Expected Push" value={formatNextOracleUpdate(selectedEntity.updatedAt)} />
                     <Detail label="Notional Watched" value={`$${formatNumber(selectedEntity.notional)}`} />
                     <Detail label="Positions Watched" value={String(selectedEntity.positions)} />
-                    <Detail label="Contract Freshness" value={selectedEntity.stale ? "Needs update" : "Inside window"} />
+                    <Detail label="Freshness" value={selectedEntity.stale ? "Outside 30 min cycle" : "Inside 30 min cycle"} />
+                    <Detail label="Last Timestamp" value={selectedEntity.updatedAt ? formatDateTime(selectedEntity.updatedAt) : "Never"} />
                   </div>
                 </>
               ) : (

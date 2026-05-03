@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { useReadContract } from "wagmi";
 import {
   Bar,
   BarChart,
@@ -18,14 +17,8 @@ import { formatAddress, formatNumber } from "../utils/formatters";
 import { usePoolStats, useTotalPositions } from "../hooks/useLendingPool";
 import { useVaultOwner } from "../hooks/useCDSVault";
 import { usePremiumReceiver } from "../hooks/usePremiumEngine";
-import { SEPOLIA_ADDRESSES, CDS_VAULT_ABI } from "../config/contracts";
+import { SEPOLIA_ADDRESSES } from "../config/contracts";
 import { IconImage } from "../components/IconImage";
-
-interface PromotionalCardProps {
-  title: string;
-  description: string;
-  bgGradient: string;
-}
 
 interface StatCardProps {
   title: string;
@@ -78,17 +71,23 @@ const Dashboard: React.FC = () => {
     { label: "Available", value: availableLiquidity, color: "#22c55e" },
   ];
   const allocationData = [
-    { name: "Available", value: availableLiquidity, color: "#2563eb" },
-    { name: "Borrowed", value: totalBorrowed, color: "#f97316" },
-    { name: "CDS Positions", value: totalOpenPositions * 100, color: "#ec4899" },
+    { name: "Available", symbol: "AVL", value: availableLiquidity, color: "#0f7bff" },
+    { name: "Borrowed", symbol: "BRW", value: totalBorrowed, color: "#fbbf24" },
+    { name: "CDS Positions", symbol: "CDS", value: totalOpenPositions * 100, color: "#ec4899" },
+    { name: "Reserve", symbol: "RSV", value: Math.max(totalSupplied - totalBorrowed - availableLiquidity, 0), color: "#d946ef" },
   ].filter((item) => item.value > 0);
-  const allocationChartData = allocationData.length
-    ? allocationData
-    : [{ name: "No capital", value: 1, color: "#64748b" }];
+  const allocationTotal = allocationData.reduce((sum, item) => sum + item.value, 0);
+  const hasLiveAllocation = allocationTotal > 0;
+  const allocationChartData = allocationData.map((item) => ({ ...item, displayValue: item.value }));
+  const allocationLegendData = allocationChartData.map((item) => ({
+    ...item,
+    pct: hasLiveAllocation ? Math.round((item.value / allocationTotal) * 100) : 0,
+  }));
+  const hasRiskData = protocolTvl > 0 || totalBorrowed > 0 || availableLiquidity > 0;
   const riskBars = [
-    { name: "Collateral", value: 120 },
-    { name: "Health", value: Math.max(100, utilizationBps / 80) },
-    { name: "Liquidity", value: Math.max(20, 100 - utilizationBps / 100) },
+    { name: "Supplied", value: protocolTvl },
+    { name: "Borrowed", value: totalBorrowed },
+    { name: "Available", value: availableLiquidity },
   ];
 
   return (
@@ -166,31 +165,76 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className={`border rounded-xl p-6 ${cardBgClass}`}>
-            <p className={`text-sm font-medium ${secondaryTextClass}`}>Capital Mix</p>
-            <h2 className={`text-2xl font-bold ${textClass} mb-4`}>Pool allocation</h2>
-            <div className="h-60">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={allocationChartData} dataKey="value" innerRadius={72} outerRadius={96} paddingAngle={5}>
-                    {allocationChartData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: any) => `$${formatNumber(Number(value), 2)}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3">
-              {(allocationData.length ? allocationData : [{ name: "No live balances", value: 0, color: "#64748b" }]).map((item) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <span className={`flex items-center gap-2 ${secondaryTextClass}`}>
-                    <span className="h-2 w-8 rounded-full" style={{ backgroundColor: item.color }} />
-                    {item.name}
-                  </span>
-                  <span className={textClass}>{formatNumber(item.value)}</span>
+          <div className={`border rounded-2xl p-7 ${cardBgClass}`}>
+            <p className={`text-sm font-semibold ${secondaryTextClass}`}>Capital Mix</p>
+            <h2 className={`text-2xl font-black ${textClass} mb-2`}>Pool allocation</h2>
+            <p className={`text-xs ${secondaryTextClass}`}>Live split of supplied, borrowed, available, and protected capital</p>
+            <div className="relative mx-auto mt-4 h-72 max-w-sm">
+              {hasLiveAllocation ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={allocationChartData}
+                      dataKey="value"
+                      innerRadius={92}
+                      outerRadius={111}
+                      startAngle={115}
+                      endAngle={-245}
+                      paddingAngle={7}
+                      cornerRadius={12}
+                      stroke="transparent"
+                    >
+                      {allocationChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: theme === "dark" ? "#0f172a" : "#ffffff",
+                        border: `1px solid ${theme === "dark" ? "#1e293b" : "#e2e8f0"}`,
+                        borderRadius: 12,
+                        color: theme === "dark" ? "#f8fafc" : "#0f172a",
+                      }}
+                      formatter={(value: any, name: any, props: any) =>
+                        `$${formatNumber(Number(props.payload.displayValue ?? value), 2)}`
+                      }
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <div className={`h-52 w-52 rounded-full border-[18px] border-dashed ${theme === "dark" ? "border-slate-800" : "border-slate-200"}`} />
                 </div>
-              ))}
+              )}
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <p className={`text-sm font-black ${textClass}`}>Protocol Capital</p>
+                  <p className="mt-1 text-xl font-black text-orange-400">${formatNumber(protocolTvl, 2)}</p>
+                  <p className={`text-xs ${secondaryTextClass}`}>{hasLiveAllocation ? `${allocationData.length} active buckets` : "No capital supplied"}</p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 space-y-3">
+              {hasLiveAllocation ? (
+                allocationLegendData.map((item) => (
+                  <div key={item.name} className="grid grid-cols-[minmax(94px,1fr)_1.2fr_42px] items-center gap-3 text-sm">
+                    <span className={`${secondaryTextClass}`}>
+                      {item.name} <span style={{ color: item.color }}>({item.symbol})</span>
+                    </span>
+                    <span className={`h-1.5 rounded-full ${theme === "dark" ? "bg-slate-800" : "bg-slate-200"}`}>
+                      <span
+                        className="block h-full rounded-full"
+                        style={{ width: `${Math.max(item.pct, 2)}%`, backgroundColor: item.color }}
+                      />
+                    </span>
+                    <span className={`${textClass} text-right text-xs font-bold`}>{item.pct}%</span>
+                  </div>
+                ))
+              ) : (
+                <div className={`rounded-xl border border-dashed px-4 py-5 text-center text-sm ${theme === "dark" ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                  Supply capital or open positions to populate this allocation.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -252,17 +296,23 @@ const Dashboard: React.FC = () => {
 
           <div className={`border rounded-xl p-6 ${cardBgClass}`}>
             <h3 className={`text-lg font-semibold ${textClass} mb-4`}>Risk Bands</h3>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={riskBars}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#1e293b" : "#e2e8f0"} />
-                  <XAxis dataKey="name" stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
-                  <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="#f97316" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {hasRiskData ? (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={riskBars}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#1e293b" : "#e2e8f0"} />
+                    <XAxis dataKey="name" stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
+                    <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} tickFormatter={(value) => `$${formatNumber(value, 0)}`} />
+                    <Tooltip formatter={(value: any) => `$${formatNumber(Number(value), 2)}`} />
+                    <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="#f97316" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className={`flex h-56 items-center justify-center rounded-xl border border-dashed text-center text-sm ${theme === "dark" ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                No supplied, borrowed, or available capital yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -291,32 +341,6 @@ const InsightCard: React.FC<{
           <h3 className={`text-2xl font-bold ${textClass}`}>{title}</h3>
           <p className={`mt-2 max-w-xl text-sm ${secondaryTextClass}`}>{subtitle}</p>
         </div>
-      </div>
-    </div>
-  );
-};
-
-const PromotionalCard: React.FC<PromotionalCardProps> = ({
-  title,
-  description,
-  bgGradient,
-}) => {
-  return (
-    <div
-      className={`rounded-xl p-6 text-white overflow-hidden relative ${bgGradient} bg-gradient-to-br`}
-    >
-      <div className="relative z-10">
-        <h3 className="text-xl font-bold mb-4">{title}</h3>
-        <a href="#" className="text-sm font-medium hover:underline flex items-center gap-1">
-          {description} →
-        </a>
-      </div>
-      {/* Decorative circles */}
-      <div className="absolute top-0 right-0 w-32 h-32 opacity-20 -mr-16 -mt-16">
-        <div className="w-full h-full rounded-full border-8 border-white"></div>
-      </div>
-      <div className="absolute bottom-0 left-1/2 w-32 h-32 opacity-20 -mb-16 -ml-16">
-        <div className="w-full h-full rounded-full border-8 border-white"></div>
       </div>
     </div>
   );

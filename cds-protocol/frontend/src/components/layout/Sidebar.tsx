@@ -24,7 +24,7 @@ const MAIN_PAGES: NavItem[] = [
 
 const SUPPORT: NavItem[] = [
   { label: "Documentation", path: "/documentation", icon: "docs" },
-  { label: "Support", path: "#", icon: "support" },
+  { label: "Support", path: "/documentation#support", icon: "support" },
 ];
 
 export const Sidebar: React.FC = () => {

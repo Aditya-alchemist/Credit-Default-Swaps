@@ -1,4 +1,5 @@
 from typing import Iterable
+import time
 
 from bot.config import BotConfig
 from bot.credit_model import compute_credit_data
@@ -7,7 +8,12 @@ from bot.credit_model import compute_credit_data
 def job_push_credit_scores(entities: Iterable[str], credit_oracle, tx_sender, cfg: BotConfig) -> None:
 	for entity in entities:
 		try:
-			if not credit_oracle.functions.isStale(entity).call():
+			contract_stale = bool(credit_oracle.functions.isStale(entity).call())
+			row = credit_oracle.functions.creditByEntity(entity).call()
+			updated_at = int(row[5])
+			age_stale = updated_at == 0 or int(time.time()) - updated_at >= cfg.poll_interval_secs
+
+			if not contract_stale and not age_stale:
 				continue
 
 			credit = compute_credit_data(entity, cfg)

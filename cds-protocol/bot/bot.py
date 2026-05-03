@@ -5,7 +5,7 @@ from eth_account.signers.local import LocalAccount
 from web3 import Web3
 
 from bot.config import load_config
-from bot.event_detector import build_entity_position_index, get_active_entities, get_active_position_ids
+from bot.event_detector import build_entity_position_index, get_active_position_ids, get_reference_entities
 from bot.margin_checker import job_check_margins, job_liquidate_expired_calls
 from bot.oracle_updater import job_push_credit_scores
 
@@ -53,6 +53,20 @@ CDS_VAULT_ABI = [
 ]
 
 CREDIT_ORACLE_ABI = [
+	{
+		"inputs": [{"internalType": "address", "name": "", "type": "address"}],
+		"name": "creditByEntity",
+		"outputs": [
+			{"internalType": "uint256", "name": "score", "type": "uint256"},
+			{"internalType": "uint256", "name": "spreadBps", "type": "uint256"},
+			{"internalType": "uint256", "name": "lambdaBps", "type": "uint256"},
+			{"internalType": "uint256", "name": "recoveryBps", "type": "uint256"},
+			{"internalType": "bool", "name": "defaulted_", "type": "bool"},
+			{"internalType": "uint256", "name": "updatedAt", "type": "uint256"},
+		],
+		"stateMutability": "view",
+		"type": "function",
+	},
 	{
 		"inputs": [{"internalType": "address", "name": "entity", "type": "address"}],
 		"name": "isStale",
@@ -204,9 +218,9 @@ def run_keeper_forever() -> None:
 
 		active_position_ids = get_active_position_ids(cds_vault)
 		entity_position_index = build_entity_position_index(cds_vault)
-		entities = get_active_entities(cds_vault)
+		entities = get_reference_entities(cds_vault)
 
-		# Job 1: Push credit scores for stale entities.
+		# Job 1: Push credit scores for referenced entities.
 		job_push_credit_scores(entities, credit_oracle, tx_sender, cfg)
 
 		# Job 2: Check all active margins.

@@ -1,10 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { WagmiConfig } from "wagmi";
+import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 
-import { wagmiConfig, chains } from "./config/wagmi";
+import { wagmiConfig } from "./config/wagmi";
 import { ThemeProvider } from "./context/ThemeContext";
 import { TxProvider } from "./context/TxContext";
 import { Navbar } from "./components/layout/Navbar";
@@ -24,9 +24,9 @@ const queryClient = new QueryClient();
 
 export default function App() {
   return (
-    <WagmiConfig config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider chains={chains}>
+        <RainbowKitProvider>
           <ThemeProvider>
             <TxProvider>
               <Router>
@@ -55,6 +55,6 @@ export default function App() {
           </ThemeProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
-    </WagmiConfig>
+    </WagmiProvider>
   );
 }

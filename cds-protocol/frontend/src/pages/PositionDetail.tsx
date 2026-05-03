@@ -43,6 +43,7 @@ export default function PositionDetail() {
   const creditRow = oracleQuery.data as any;
   const currentSpreadBps = Number(creditRow?.spreadBps ?? creditRow?.[1] ?? entrySpreadBps);
   const creditScore = Number(creditRow?.score ?? creditRow?.[0] ?? 0);
+  const recoveryBps = Number(creditRow?.recoveryBps ?? creditRow?.[3] ?? 4000);
   const oracleUpdatedAt = Number(creditRow?.updatedAt ?? creditRow?.[5] ?? 0);
 
   const mtmLossRaw = BigInt(mtmQuery.data ?? 0n);
@@ -59,8 +60,16 @@ export default function PositionDetail() {
   const nextPremiumCountdown = nextPremiumDue > 0 ? formatTimeRemaining(Math.max(0, nextPremiumDue - Math.floor(Date.now() / 1000))) : "Unavailable";
   const marginCountdown = marginDeadline > 0 ? formatTimeRemaining(Math.max(0, marginDeadline - Math.floor(Date.now() / 1000))) : "Unavailable";
 
-  const expectedPayoutUnits = (notionalUnits * 6000n) / 10000n;
-  const expectedSellerSurplusUnits = collateralUnits > expectedPayoutUnits ? collateralUnits - expectedPayoutUnits : 0n;
+  const buyerPayoutUnits = (notionalUnits * BigInt(Math.max(0, 10000 - recoveryBps))) / 10000n;
+  const sellerSurplusUnits = collateralUnits > buyerPayoutUnits ? collateralUnits - buyerPayoutUnits : 0n;
+  const lockedCollateralUnits = state === 2 || state === 3 ? 0n : collateralUnits;
+  const maxCollateralForFlow = collateralUnits > 0n ? collateralUnits : (notionalUnits * 12000n) / 10000n;
+  const exampleBuyerPayoutUnits = (notionalUnits * BigInt(Math.max(0, 10000 - recoveryBps))) / 10000n;
+  const exampleSellerSurplusUnits = maxCollateralForFlow > exampleBuyerPayoutUnits ? maxCollateralForFlow - exampleBuyerPayoutUnits : 0n;
+  const displayedBuyerPayoutUnits = state === 2 && collateralUnits === 0n ? exampleBuyerPayoutUnits : buyerPayoutUnits;
+  const displayedSellerSurplusUnits = state === 2 && collateralUnits === 0n ? exampleSellerSurplusUnits : sellerSurplusUnits;
+  const expectedPayoutUnits = buyerPayoutUnits;
+  const expectedSellerSurplusUnits = displayedSellerSurplusUnits;
   const statusLabel = state === 2 ? "DEFAULTED" : state === 3 ? "EXPIRED" : !isActive ? "CLOSED" : isUnderwater || currentRatioBps < 12000 ? "MARGIN CALL" : missedPremium ? "PREMIUM MISSED" : "ACTIVE";
   const statusClass = statusLabel === "ACTIVE"
     ? "bg-green-500/20 text-green-400"
@@ -109,6 +118,42 @@ export default function PositionDetail() {
                 For a 40% recovery assumption, the protection buyer payout is ${formatUsdc(expectedPayoutUnits)} USDC and any remaining collateral is seller surplus.
                 In this position the buyer and seller are the same wallet, so the payout and surplus both went to the same address.
               </p>
+            </div>
+          )}
+        </div>
+
+        <div className={`border rounded-xl p-6 ${cardBgClass}`}>
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className={`text-xl font-bold ${textClass}`}>Collateral Flow</h2>
+              <p className={`text-sm ${secondaryTextClass}`}>
+                Shows where collateral sits now and how it is routed during default settlement.
+              </p>
+            </div>
+            <span className={`rounded-lg px-3 py-2 text-xs font-semibold ${theme === "dark" ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
+              Recovery {formatNumber(recoveryBps / 100, 2)}%
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <FlowMetric
+              label="Currently Locked"
+              value={`$${formatUsdc(lockedCollateralUnits)}`}
+              detail={lockedCollateralUnits > 0n ? `Held in CDSVault ${formatAddress(SEPOLIA_ADDRESSES.CDSVault)}` : "No collateral remains locked in the vault"}
+            />
+            <FlowMetric
+              label="Buyer Default Payout"
+              value={`$${formatUsdc(displayedBuyerPayoutUnits)}`}
+              detail={`To buyer ${buyer ? formatAddress(buyer) : "-"}`}
+            />
+            <FlowMetric
+              label="Seller Surplus"
+              value={`$${formatUsdc(displayedSellerSurplusUnits)}`}
+              detail={`To seller ${seller ? formatAddress(seller) : "-"}`}
+            />
+          </div>
+          {collateralUnits === 0n && notionalUnits > 0n && (
+            <div className={`mt-4 rounded-xl border p-4 text-sm ${theme === "dark" ? "border-blue-500/30 bg-blue-500/10 text-blue-100" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
+              Example for original 120% collateral: ${formatUsdc(maxCollateralForFlow)} total would split into ${formatUsdc(exampleBuyerPayoutUnits)} to buyer and ${formatUsdc(exampleSellerSurplusUnits)} back to seller.
             </div>
           )}
         </div>
@@ -176,6 +221,20 @@ function Metric({ label, value, highlight = false }: { label: string; value: str
     <div className={`border rounded-lg p-4 ${cardBgClass}`}>
       <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
       <p className={`mt-2 text-lg font-semibold ${highlight ? textClass : textClass}`}>{value}</p>
+    </div>
+  );
+}
+
+function FlowMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  const { theme } = useTheme();
+  const textClass = theme === "dark" ? "text-white" : "text-slate-900";
+  const secondaryTextClass = theme === "dark" ? "text-slate-400" : "text-slate-600";
+
+  return (
+    <div className={`rounded-xl border p-4 ${theme === "dark" ? "border-slate-800 bg-slate-950/50" : "border-slate-200 bg-slate-50"}`}>
+      <p className={`text-xs uppercase tracking-wide ${secondaryTextClass}`}>{label}</p>
+      <p className={`mt-2 text-2xl font-bold ${textClass}`}>{value}</p>
+      <p className={`mt-2 text-sm ${secondaryTextClass}`}>{detail}</p>
     </div>
   );
 }

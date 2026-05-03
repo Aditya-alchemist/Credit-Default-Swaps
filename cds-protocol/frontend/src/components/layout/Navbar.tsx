@@ -3,7 +3,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useTheme } from "../../context/ThemeContext";
 import { IconImage } from "../IconImage";
 import { Link } from "react-router-dom";
-import { Github, BookOpen, ExternalLink } from "lucide-react";
+import { BookOpen, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 export const Navbar: React.FC = () => {
@@ -54,7 +54,7 @@ export const Navbar: React.FC = () => {
                 }`}
                 title="GitHub links"
               >
-                <Github size={18} />
+                <ExternalLink size={18} />
                 <span className="text-sm font-medium">GitHub</span>
               </button>
 
@@ -75,7 +75,7 @@ export const Navbar: React.FC = () => {
                         : "hover:bg-slate-100"
                     }`}
                   >
-                    <Github size={16} />
+                    <ExternalLink size={16} />
                     <span className="text-sm">Repository</span>
                     <ExternalLink size={14} />
                   </a>
@@ -112,18 +112,7 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Middle - Search (optional) */}
-        <div className="hidden md:flex flex-1 max-w-md mx-8">
-          <input
-            type="text"
-            placeholder="Search..."
-            className={`w-full px-4 py-2 rounded-lg border transition ${
-              theme === "dark"
-                ? "bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                : "bg-slate-100 border-slate-200 text-slate-900 placeholder:text-slate-400"
-            }`}
-          />
-        </div>
+        <div className="hidden md:block flex-1" />
 
         {/* Right Side - Actions */}
         <div className="flex items-center gap-4">
