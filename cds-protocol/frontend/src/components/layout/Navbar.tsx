@@ -64,14 +64,16 @@ export const Navbar: React.FC = () => {
                   theme === "dark"
                     ? "bg-slate-900 border-slate-700"
                     : "bg-white border-slate-200"
-                } shadow-lg py-2`}>
+                } shadow-lg py-2 z-50`}>
                   <a
                     href="https://github.com/Aditya-alchemist/Credit-Default-Swaps"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center gap-2 px-4 py-2 hover:${
-                      theme === "dark" ? "bg-slate-800" : "bg-slate-100"
-                    } transition`}
+                    className={`flex items-center gap-2 px-4 py-2 transition ${
+                      theme === "dark"
+                        ? "hover:bg-slate-800"
+                        : "hover:bg-slate-100"
+                    }`}
                   >
                     <Github size={16} />
                     <span className="text-sm">Repository</span>
@@ -81,9 +83,11 @@ export const Navbar: React.FC = () => {
                     href="https://github.com/Aditya-alchemist/Credit-Default-Swaps/blob/main/README.md"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center gap-2 px-4 py-2 hover:${
-                      theme === "dark" ? "bg-slate-800" : "bg-slate-100"
-                    } transition`}
+                    className={`flex items-center gap-2 px-4 py-2 transition ${
+                      theme === "dark"
+                        ? "hover:bg-slate-800"
+                        : "hover:bg-slate-100"
+                    }`}
                   >
                     <BookOpen size={16} />
                     <span className="text-sm">Full README</span>
@@ -93,9 +97,11 @@ export const Navbar: React.FC = () => {
                     href="https://github.com/Aditya-alchemist/Credit-Default-Swaps/issues"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center gap-2 px-4 py-2 hover:${
-                      theme === "dark" ? "bg-slate-800" : "bg-slate-100"
-                    } transition`}
+                    className={`flex items-center gap-2 px-4 py-2 transition ${
+                      theme === "dark"
+                        ? "hover:bg-slate-800"
+                        : "hover:bg-slate-100"
+                    }`}
                   >
                     <span className="text-sm">Issues</span>
                     <ExternalLink size={14} />

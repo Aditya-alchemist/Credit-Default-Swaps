@@ -314,7 +314,7 @@ const Documentation = () => {
             <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
               <div>
                 <h3 className="font-semibold text-blue-600 dark:text-blue-400">Job 1: Check Margins</h3>
-                <p className="text-sm">Runs every 60 seconds. Scans all positions and triggers margin calls if collateral ratio < 120%.</p>
+                <p className="text-sm">Runs every 60 seconds. Scans all positions and triggers margin calls if collateral ratio is below 120%.</p>
               </div>
 
               <div>
