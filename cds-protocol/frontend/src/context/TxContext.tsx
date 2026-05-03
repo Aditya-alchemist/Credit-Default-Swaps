@@ -23,6 +23,7 @@ type TxContextType = {
     options?: { txHash?: string; explorerUrl?: string }
   ) => void;
   notifyError: (id: number, message?: string) => void;
+  dismiss: (id: number) => void;
   items: TxItem[];
 };
 
@@ -30,6 +31,10 @@ const TxContext = createContext<TxContextType | undefined>(undefined);
 
 export const TxProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<TxItem[]>([]);
+
+  const dismiss = (id: number) => {
+    setItems((s) => s.filter((it) => it.id !== id));
+  };
   
   const notifyPending = (
     title: string,
@@ -53,54 +58,81 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     message?: string,
     options?: { txHash?: string; explorerUrl?: string }
   ) => {
-    setItems((s) =>
-      s.map((it) =>
-        it.id === id
+    let resolvedId = id;
+    setItems((s) => {
+      const targetId = s.some((it) => it.id === id)
+        ? id
+        : s.find((it) => it.status === "pending")?.id ?? id;
+      resolvedId = targetId;
+      return s.map((it) =>
+        it.id === targetId
           ? {
               ...it,
+              id: targetId,
               status: "success",
               message,
               txHash: options?.txHash,
               explorerUrl: options?.explorerUrl,
             }
           : it
-      )
-    );
-    setTimeout(() => setItems((s) => s.filter((it) => it.id !== id)), 6000);
+      );
+    });
+    setTimeout(() => setItems((s) => s.filter((it) => it.id !== resolvedId)), 6000);
   };
 
   const notifyError = (id: number, message?: string) => {
-    setItems((s) =>
-      s.map((it) =>
-        it.id === id ? { ...it, status: "error", message } : it
-      )
-    );
-    setTimeout(() => setItems((s) => s.filter((it) => it.id !== id)), 8000);
+    let resolvedId = id;
+    setItems((s) => {
+      const targetId = s.some((it) => it.id === id)
+        ? id
+        : s.find((it) => it.status === "pending")?.id ?? id;
+      resolvedId = targetId;
+
+      if (!s.some((it) => it.id === targetId)) {
+        return [{ id: targetId, title: "Transaction failed", status: "error", message }, ...s];
+      }
+
+      return s.map((it) =>
+        it.id === targetId ? { ...it, status: "error", message } : it
+      );
+    });
+    setTimeout(() => setItems((s) => s.filter((it) => it.id !== resolvedId)), 8000);
   };
 
   return (
-    <TxContext.Provider value={{ notifyPending, notifySuccess, notifyError, items }}>
+    <TxContext.Provider value={{ notifyPending, notifySuccess, notifyError, dismiss, items }}>
       {children}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+      <div className="fixed right-4 top-20 z-[70] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-3">
         {items.map((it) => (
           <div
             key={it.id}
-            className={`max-w-sm w-full border rounded-lg px-4 py-3 shadow-lg flex flex-col gap-2 ${{
-              pending: "bg-slate-800 text-white border-slate-600",
-              success: "bg-green-700 text-white border-green-600",
+            className={`w-full overflow-hidden rounded-lg border px-4 py-3 shadow-xl backdrop-blur flex flex-col gap-2 ${{
+              pending: "bg-slate-900 text-white border-slate-700",
+              success: "bg-emerald-700 text-white border-emerald-600",
               error: "bg-red-700 text-white border-red-600",
             }[it.status]}`}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="font-medium">{it.title}</div>
+            <div className="flex items-start gap-3">
+              <div className={`mt-1 h-2.5 w-2.5 rounded-full ${
+                it.status === "pending" ? "bg-amber-400" : it.status === "success" ? "bg-emerald-300" : "bg-red-200"
+              }`} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{it.title}</div>
                 {it.message && (
-                  <div className="text-sm opacity-80 mt-1">{it.message}</div>
+                  <div className="text-xs opacity-80 mt-1 leading-relaxed">{it.message}</div>
                 )}
               </div>
-              <div className="text-xs font-semibold self-start whitespace-nowrap ml-2">
+              <div className="text-[10px] font-semibold self-start whitespace-nowrap rounded-full bg-white/10 px-2 py-1">
                 {it.status.toUpperCase()}
               </div>
+              <button
+                type="button"
+                onClick={() => dismiss(it.id)}
+                className="rounded p-1 text-white/70 transition hover:bg-white/10 hover:text-white"
+                aria-label="Dismiss notification"
+              >
+                x
+              </button>
             </div>
             {it.gasEstimate && (
               <div className="text-xs opacity-75">Gas: {it.gasEstimate}</div>
@@ -112,7 +144,7 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
                 rel="noopener noreferrer"
                 className="text-xs underline hover:opacity-80"
               >
-                View on Explorer →
+                View on Explorer -&gt;
               </a>
             )}
           </div>

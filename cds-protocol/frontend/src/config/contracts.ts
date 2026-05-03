@@ -15,6 +15,8 @@ export const SEPOLIA_ADDRESSES = {
   LendingPool: "0x472F8c4f7582e96Eaa29789166553d0281fDE285",
 } as const;
 
+export const SEPOLIA_DEPLOYER = "0x0350e6a031e9a11cf6bc725e8f36fd72b7a3b981" as const;
+
 // ERC20 ABI (minimal)
 export const ERC20_ABI = [
   {
@@ -63,6 +65,16 @@ export const ERC20_ABI = [
     name: "allowance",
     outputs: [{ type: "uint256" }],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    name: "mint",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
 ] as const;
@@ -122,11 +134,11 @@ export const CDS_VAULT_ABI = [
   {
     inputs: [
       { internalType: "address", name: "buyer", type: "address" },
+      { internalType: "address", name: "seller", type: "address" },
       { internalType: "address", name: "referenceEntity", type: "address" },
       { internalType: "uint256", name: "notional", type: "uint256" },
       { internalType: "uint256", name: "spreadBps", type: "uint256" },
-      { internalType: "uint256", name: "maturity", type: "uint256" },
-      { internalType: "uint256", name: "collateral", type: "uint256" },
+      { internalType: "uint256", name: "maturityDays", type: "uint256" },
     ],
     name: "openCDS",
     outputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
@@ -179,18 +191,32 @@ export const CREDIT_ORACLE_ABI = [
     inputs: [{ internalType: "address", name: "entity", type: "address" }],
     name: "getCreditData",
     outputs: [
-      {
-        components: [
-          { internalType: "uint256", name: "score", type: "uint256" },
-          { internalType: "uint256", name: "lambdaBps", type: "uint256" },
-          { internalType: "uint256", name: "recoveryBps", type: "uint256" },
-          { internalType: "uint256", name: "timestamp", type: "uint256" },
-        ],
-        internalType: "struct ICreditOracle.CreditData",
-        name: "",
-        type: "tuple",
-      },
+      { internalType: "uint256", name: "score", type: "uint256" },
+      { internalType: "uint256", name: "lambdaBps", type: "uint256" },
+      { internalType: "uint256", name: "recoveryBps", type: "uint256" },
+      { internalType: "bool", name: "defaulted_", type: "bool" },
     ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "creditByEntity",
+    outputs: [
+      { internalType: "uint256", name: "score", type: "uint256" },
+      { internalType: "uint256", name: "spreadBps", type: "uint256" },
+      { internalType: "uint256", name: "lambdaBps", type: "uint256" },
+      { internalType: "uint256", name: "recoveryBps", type: "uint256" },
+      { internalType: "bool", name: "defaulted_", type: "bool" },
+      { internalType: "uint256", name: "updatedAt", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "entity", type: "address" }],
+    name: "getCreditScore",
+    outputs: [{ internalType: "uint256", name: "score", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
@@ -198,6 +224,20 @@ export const CREDIT_ORACLE_ABI = [
     inputs: [{ internalType: "address", name: "entity", type: "address" }],
     name: "getSpread",
     outputs: [{ internalType: "uint256", name: "spreadBps", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "entity", type: "address" }],
+    name: "getHazardRate",
+    outputs: [{ internalType: "uint256", name: "lambda", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "entity", type: "address" }],
+    name: "getRecoveryBps",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
@@ -247,10 +287,27 @@ export const CREDIT_ORACLE_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [
+      { internalType: "address", name: "reporter", type: "address" },
+      { internalType: "bool", name: "allowed", type: "bool" },
+    ],
+    name: "setAuthorizedReporter",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ] as const;
 
 // Premium Engine ABI
 export const PREMIUM_ENGINE_ABI = [
+  {
+    inputs: [],
+    name: "premiumReceiver",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
   {
     inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
     name: "collectPremium",
@@ -270,6 +327,27 @@ export const PREMIUM_ENGINE_ABI = [
     name: "getNextPremiumDue",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
+    name: "getNextPremiumAmount",
+    outputs: [{ internalType: "uint256", name: "premiumDue", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
+    name: "getTotalPremiumsCollected",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "newReceiver", type: "address" }],
+    name: "setPremiumReceiver",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
 ] as const;
@@ -326,8 +404,9 @@ export const SETTLEMENT_ENGINE_ABI = [
     inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
     name: "previewPayout",
     outputs: [
-      { internalType: "uint256", name: "buyerPayout", type: "uint256" },
-      { internalType: "uint256", name: "sellerSurplus", type: "uint256" },
+      { internalType: "uint256", name: "payout", type: "uint256" },
+      { internalType: "uint256", name: "surplus", type: "uint256" },
+      { internalType: "uint256", name: "recoveryBps", type: "uint256" },
     ],
     stateMutability: "view",
     type: "function",
@@ -348,10 +427,49 @@ export const SETTLEMENT_ENGINE_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "address", name: "referenceEntity", type: "address" }],
+    name: "hasCreditEvent",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "referenceEntity", type: "address" }],
+    name: "getRecoveryBps",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
+    name: "isSettled",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
+    name: "settlePosition",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ] as const;
 
 // Lending Pool ABI
 export const LENDING_POOL_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "supplyId", type: "uint256" },
+      { indexed: true, internalType: "address", name: "lender", type: "address" },
+      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "lTokensMinted", type: "uint256" },
+    ],
+    name: "Deposited",
+    type: "event",
+  },
   {
     inputs: [
       { internalType: "uint256", name: "amount", type: "uint256" },
@@ -372,9 +490,19 @@ export const LENDING_POOL_ABI = [
   },
   {
     inputs: [
-      { internalType: "address", name: "collateral", type: "address" },
+      { internalType: "uint256", name: "supplyId", type: "uint256" },
+      { internalType: "address", name: "seller", type: "address" },
+    ],
+    name: "enableCDSProtection",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
       { internalType: "uint256", name: "amount", type: "uint256" },
       { internalType: "uint256", name: "borrowAmount", type: "uint256" },
+      { internalType: "uint256", name: "duration", type: "uint256" },
     ],
     name: "borrow",
     outputs: [{ internalType: "uint256", name: "loanId", type: "uint256" }],
@@ -384,7 +512,6 @@ export const LENDING_POOL_ABI = [
   {
     inputs: [
       { internalType: "uint256", name: "loanId", type: "uint256" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
     ],
     name: "repay",
     outputs: [],
@@ -393,7 +520,6 @@ export const LENDING_POOL_ABI = [
   },
   {
     inputs: [
-      { internalType: "address", name: "borrower", type: "address" },
       { internalType: "uint256", name: "loanId", type: "uint256" },
     ],
     name: "liquidate",
@@ -402,15 +528,116 @@ export const LENDING_POOL_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "uint256", name: "loanId", type: "uint256" },
-    ],
-    name: "getHealthFactor",
+    inputs: [],
+    name: "getAvailableLiquidity",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
-  {
+    {
+      inputs: [],
+      name: "totalSupplied",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [],
+      name: "totalBorrowed",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [],
+      name: "wethPriceUsdc",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [],
+      name: "getUtilizationRate",
+      outputs: [{ internalType: "uint256", name: "utilizationBps", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [{ internalType: "uint256", name: "supplyId", type: "uint256" }],
+      name: "getNetAPY",
+      outputs: [{ internalType: "uint256", name: "netApyBps", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [{ internalType: "uint256", name: "supplyId", type: "uint256" }],
+      name: "getSupplyPosition",
+      outputs: [
+        {
+          components: [
+            { internalType: "address", name: "lender", type: "address" },
+            { internalType: "uint256", name: "amount", type: "uint256" },
+            { internalType: "uint256", name: "lTokenAmount", type: "uint256" },
+            { internalType: "uint256", name: "depositTimestamp", type: "uint256" },
+            { internalType: "bool", name: "cdsProtectionEnabled", type: "bool" },
+            { internalType: "uint256", name: "cdsPositionId", type: "uint256" },
+          ],
+          internalType: "struct LendingPool.SupplyPosition",
+          name: "",
+          type: "tuple",
+        },
+      ],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [{ internalType: "uint256", name: "loanId", type: "uint256" }],
+      name: "getLoanPosition",
+      outputs: [
+        {
+          components: [
+            { internalType: "address", name: "borrower", type: "address" },
+            { internalType: "uint256", name: "loanAmount", type: "uint256" },
+            { internalType: "uint256", name: "collateralAmount", type: "uint256" },
+            { internalType: "uint256", name: "interestRateBps", type: "uint256" },
+            { internalType: "uint256", name: "openTimestamp", type: "uint256" },
+            { internalType: "uint256", name: "lastInterestAccrued", type: "uint256" },
+            { internalType: "uint256", name: "accruedInterest", type: "uint256" },
+            { internalType: "uint256", name: "duration", type: "uint256" },
+            { internalType: "uint8", name: "state", type: "uint8" },
+          ],
+          internalType: "struct LendingPool.LoanPosition",
+          name: "",
+          type: "tuple",
+        },
+      ],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [{ internalType: "address", name: "borrower", type: "address" }],
+      name: "getBorrowerLoans",
+      outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [{ internalType: "address", name: "lender", type: "address" }],
+      name: "getLenderSupplies",
+      outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [
+        { internalType: "uint256", name: "loanId", type: "uint256" },
+      ],
+      name: "getHealthFactor",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
     inputs: [
       { internalType: "uint256", name: "loanId", type: "uint256" },
     ],

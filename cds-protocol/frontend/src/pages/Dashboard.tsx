@@ -1,41 +1,25 @@
 import React, { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { useAccount } from "wagmi";
+import { useReadContract } from "wagmi";
 import {
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
 } from "recharts";
-
-// Mock data for protocol value over time
-const PROTOCOL_DATA = [
-  { date: "05/05", value: 1200 },
-  { date: "08/05", value: 1500 },
-  { date: "13/05", value: 1800 },
-  { date: "20/05", value: 2100 },
-  { date: "28/05", value: 2800 },
-  { date: "05/06", value: 3433 },
-];
-
-// Mock data for protocol exposure breakdown
-const ASSET_DATA = [
-  { name: "Compound Exposure", value: 24, color: "#ec4899" },
-  { name: "Aave Exposure", value: 18, color: "#3b82f6" },
-  { name: "Uniswap Exposure", value: 32, color: "#d946ef" },
-  { name: "Reserve Buffer", value: 22, color: "#f59e0b" },
-  { name: "Settlement Pool", value: 4, color: "#10b981" },
-];
-
-const TIME_PERIODS = ["7D", "1M", "3M", "6M", "1Y", "ALL"];
+import { formatUnits } from "viem";
+import { formatAddress, formatNumber } from "../utils/formatters";
+import { usePoolStats, useTotalPositions } from "../hooks/useLendingPool";
+import { useVaultOwner } from "../hooks/useCDSVault";
+import { usePremiumReceiver } from "../hooks/usePremiumEngine";
+import { SEPOLIA_ADDRESSES, CDS_VAULT_ABI } from "../config/contracts";
+import { IconImage } from "../components/IconImage";
 
 interface PromotionalCardProps {
   title: string;
@@ -51,8 +35,20 @@ interface StatCardProps {
 
 const Dashboard: React.FC = () => {
   const { theme } = useTheme();
-  const { address, isConnected } = useAccount();
-  const [selectedPeriod, setSelectedPeriod] = useState("1M");
+  const [selectedPeriod, setSelectedPeriod] = useState("Live");
+  const totalPositions = useTotalPositions();
+  const poolStats = usePoolStats();
+  const vaultOwner = useVaultOwner();
+  const premiumReceiver = usePremiumReceiver();
+
+  const totalSupplied = poolStats.totalSupplied.data ? Number(formatUnits(BigInt(poolStats.totalSupplied.data as any), 6)) : 0;
+  const totalBorrowed = poolStats.totalBorrowed.data ? Number(formatUnits(BigInt(poolStats.totalBorrowed.data as any), 6)) : 0;
+  const availableLiquidity = poolStats.availableLiquidity.data ? Number(formatUnits(BigInt(poolStats.availableLiquidity.data as any), 6)) : 0;
+  const utilizationBps = poolStats.utilizationRate.data ? Number(poolStats.utilizationRate.data) : 0;
+  const totalOpenPositions = totalPositions.data ? Number(totalPositions.data) : 0;
+  const protocolTvl = totalSupplied;
+  const ownerAddress = vaultOwner.data ? String(vaultOwner.data) : SEPOLIA_ADDRESSES.CDSVault;
+  const receiverAddress = premiumReceiver.data ? String(premiumReceiver.data) : SEPOLIA_ADDRESSES.CDSVault;
 
   const bgClass = theme === "dark" 
     ? "bg-slate-950" 
@@ -70,6 +66,31 @@ const Dashboard: React.FC = () => {
     ? "text-slate-400" 
     : "text-slate-600";
 
+  const contractRows = [
+    { label: "CDS Vault", address: SEPOLIA_ADDRESSES.CDSVault, value: `${totalOpenPositions} positions` },
+    { label: "Lending Pool", address: SEPOLIA_ADDRESSES.LendingPool, value: `${formatNumber(totalBorrowed)} borrowed` },
+    { label: "Premium Receiver", address: receiverAddress, value: "live payout target" },
+    { label: "Vault Owner", address: ownerAddress, value: "owner-controlled" },
+  ];
+  const exposureData = [
+    { label: "Supplied", value: totalSupplied, color: "#f97316" },
+    { label: "Borrowed", value: totalBorrowed, color: "#2563eb" },
+    { label: "Available", value: availableLiquidity, color: "#22c55e" },
+  ];
+  const allocationData = [
+    { name: "Available", value: availableLiquidity, color: "#2563eb" },
+    { name: "Borrowed", value: totalBorrowed, color: "#f97316" },
+    { name: "CDS Positions", value: totalOpenPositions * 100, color: "#ec4899" },
+  ].filter((item) => item.value > 0);
+  const allocationChartData = allocationData.length
+    ? allocationData
+    : [{ name: "No capital", value: 1, color: "#64748b" }];
+  const riskBars = [
+    { name: "Collateral", value: 120 },
+    { name: "Health", value: Math.max(100, utilizationBps / 80) },
+    { name: "Liquidity", value: Math.max(20, 100 - utilizationBps / 100) },
+  ];
+
   return (
     <div className={`min-h-screen ${bgClass} pt-24 pb-12`}>
       <div className="lg:ml-64 px-4 lg:px-8">
@@ -81,34 +102,46 @@ const Dashboard: React.FC = () => {
 
         {/* Protocol Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Total TVL" value="$2.4M" subtitle="Protocol capital tracked" />
-          <StatCard title="Open CDS Positions" value="142" subtitle="Active buyer/seller contracts" />
-          <StatCard title="Active Loans" value="89" subtitle="Loans protected by CDS" />
-          <StatCard title="Total Defaults" value="3" subtitle="Declared credit events" />
+          <StatCard title="Total TVL" value={`$${formatNumber(protocolTvl)}`} subtitle="Live onchain supplied capital" />
+          <StatCard title="Open CDS Positions" value={String(totalOpenPositions)} subtitle="Positions tracked in the vault" />
+          <StatCard title="Available Liquidity" value={`$${formatNumber(availableLiquidity)}`} subtitle="USDC ready for lending" />
+          <StatCard title="Utilization" value={`${formatNumber(utilizationBps / 100, 1)}%`} subtitle="Borrowed versus supplied" />
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+          <InsightCard
+            title="Protection markets"
+            subtitle="Track collateral, open protection, and settlement readiness from one command surface."
+            icon="shield"
+            accent="from-blue-500/20 via-sky-400/10 to-orange-400/20"
+          />
+          <InsightCard
+            title="Capital efficiency"
+            subtitle="Deposits, lending liquidity, and CDS coverage now sit in the same operational workflow."
+            icon="chart"
+            accent="from-orange-500/20 via-amber-400/10 to-pink-500/20"
+          />
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Chart */}
-          <div className={`lg:col-span-2 border rounded-xl p-6 ${cardBgClass}`}>
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8">
+          <div className={`xl:col-span-2 border rounded-xl p-6 ${cardBgClass}`}>
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <p className={`text-sm font-medium ${secondaryTextClass} mb-2`}>Protocol Exposure</p>
-                <h2 className={`text-4xl font-bold ${textClass}`}>€12,433.35</h2>
-                <p className={`text-sm ${secondaryTextClass} mt-1`}>Net notional under protection</p>
+                <p className={`text-sm font-medium ${secondaryTextClass}`}>Protocol Exposure</p>
+                <h2 className={`text-2xl font-bold ${textClass}`}>Live liquidity snapshot</h2>
               </div>
-              <div className="flex gap-2">
-                {TIME_PERIODS.map((period) => (
+              <div className="flex gap-2 text-xs">
+                {["1D", "7D", "1M", "ALL"].map((period) => (
                   <button
                     key={period}
                     onClick={() => setSelectedPeriod(period)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition ${
+                    className={`rounded-md px-3 py-1 font-semibold transition ${
                       selectedPeriod === period
                         ? "bg-orange-500 text-white"
                         : theme === "dark"
-                          ? "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                          : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                          ? "bg-slate-800 text-slate-400"
+                          : "bg-slate-100 text-slate-500"
                     }`}
                   >
                     {period}
@@ -116,167 +149,147 @@ const Dashboard: React.FC = () => {
                 ))}
               </div>
             </div>
-
-            {/* Chart */}
-            <div className="w-full h-80">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={PROTOCOL_DATA}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={theme === "dark" ? "#334155" : "#e2e8f0"}
-                  />
-                  <XAxis
-                    dataKey="date"
-                    stroke={theme === "dark" ? "#94a3b8" : "#64748b"}
-                  />
-                  <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc",
-                      border: `1px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}`,
-                      borderRadius: "8px",
-                      color: theme === "dark" ? "#fff" : "#000",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorValue)"
-                  />
-                </AreaChart>
+                <BarChart data={exposureData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#1e293b" : "#e2e8f0"} />
+                  <XAxis dataKey="label" stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
+                  <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} tickFormatter={(value) => `$${formatNumber(value, 0)}`} />
+                  <Tooltip formatter={(value: any) => `$${formatNumber(Number(value), 2)}`} />
+                  <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                    {exposureData.map((entry) => (
+                      <Cell key={entry.label} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Right Column - Asset Breakdown */}
           <div className={`border rounded-xl p-6 ${cardBgClass}`}>
-            {/* Donut Chart */}
-            <div className="w-full h-48 mb-6">
+            <p className={`text-sm font-medium ${secondaryTextClass}`}>Capital Mix</p>
+            <h2 className={`text-2xl font-bold ${textClass} mb-4`}>Pool allocation</h2>
+            <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={ASSET_DATA}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {ASSET_DATA.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Pie data={allocationChartData} dataKey="value" innerRadius={72} outerRadius={96} paddingAngle={5}>
+                    {allocationChartData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc",
-                      border: `1px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}`,
-                      borderRadius: "8px",
-                      color: theme === "dark" ? "#fff" : "#000",
-                    }}
-                  />
+                  <Tooltip formatter={(value: any) => `$${formatNumber(Number(value), 2)}`} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-
-            {/* Center Label */}
-            <div className="text-center mb-6">
-              <p className={`text-sm ${secondaryTextClass} mb-1`}>CDS protocol value</p>
-              <p className={`text-2xl font-bold text-orange-500`}>€12,433.35</p>
-              <p className={`text-sm ${secondaryTextClass} mt-1`}>5 monitored exposures</p>
-            </div>
-
-            {/* Asset List */}
             <div className="space-y-3">
-              {ASSET_DATA.map((asset, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <div
-                    className="w-2 h-8 rounded"
-                    style={{ backgroundColor: asset.color }}
-                  ></div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${textClass}`}>{asset.name}</p>
-                  </div>
-                  <p className={`text-sm font-semibold ${textClass}`}>{asset.value}%</p>
+              {(allocationData.length ? allocationData : [{ name: "No live balances", value: 0, color: "#64748b" }]).map((item) => (
+                <div key={item.name} className="flex items-center justify-between text-sm">
+                  <span className={`flex items-center gap-2 ${secondaryTextClass}`}>
+                    <span className="h-2 w-8 rounded-full" style={{ backgroundColor: item.color }} />
+                    {item.name}
+                  </span>
+                  <span className={textClass}>{formatNumber(item.value)}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Protocol Table */}
-        <div className={`mt-8 border rounded-xl overflow-hidden ${cardBgClass}`}>
-          <div className={`border-b ${theme === "dark" ? "border-slate-800" : "border-slate-200"} px-6 py-4`}>
-            <div className="flex justify-between items-center">
-              <h3 className={`text-lg font-semibold ${textClass}`}>Entity Health</h3>
-              <span className={`text-sm ${secondaryTextClass}`}>Latest oracle snapshot</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className={`border rounded-xl p-6 ${cardBgClass}`}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <p className={`text-sm font-medium ${secondaryTextClass} mb-2`}>Protocol Snapshot</p>
+                <h2 className={`text-4xl font-bold ${textClass}`}>Live contracts</h2>
+                <p className={`text-sm ${secondaryTextClass} mt-1`}>All values below come directly from deployed contracts</p>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${theme === "dark" ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
+                {selectedPeriod}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border px-4 py-3 border-slate-200 dark:border-slate-800">
+                <div>
+                  <p className={`text-sm ${secondaryTextClass}`}>Vault owner</p>
+                  <p className={`font-mono text-sm ${textClass}`}>{formatAddress(ownerAddress)}</p>
+                </div>
+                <span className={`text-sm ${secondaryTextClass}`}>Controls pause and recovery</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border px-4 py-3 border-slate-200 dark:border-slate-800">
+                <div>
+                  <p className={`text-sm ${secondaryTextClass}`}>Premium receiver</p>
+                  <p className={`font-mono text-sm ${textClass}`}>{formatAddress(receiverAddress)}</p>
+                </div>
+                <span className={`text-sm ${secondaryTextClass}`}>Receives collected premiums</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border px-4 py-3 border-slate-200 dark:border-slate-800">
+                <div>
+                  <p className={`text-sm ${secondaryTextClass}`}>Vault collateral escrow</p>
+                  <p className={`text-sm ${textClass}`}>{formatNumber(totalBorrowed)} USDC locked against active lending</p>
+                </div>
+                <span className={`text-sm ${secondaryTextClass}`}>Borrowed from the pool</span>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={theme === "dark" ? "bg-slate-800" : "bg-slate-100"}>
-                <tr>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    Entity
-                  </th>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    Spread
-                  </th>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    24h Move
-                  </th>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    Collateral
-                  </th>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    Notional
-                  </th>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    Coverage
-                  </th>
-                  <th className={`px-6 py-3 text-left text-sm font-semibold ${textClass}`}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className={theme === "dark" ? "border-t border-slate-800 hover:bg-slate-800/50" : "border-t border-slate-200 hover:bg-slate-100"}>
-                  <td className={`px-6 py-4 font-medium ${textClass}`}>Compound</td>
-                  <td className={`px-6 py-4 ${textClass}`}>850</td>
-                  <td className={`px-6 py-4 ${textClass}`}>50 bps</td>
-                  <td className={`px-6 py-4 ${textClass}`}>0.5%</td>
-                  <td className={`px-6 py-4`}><span className="text-green-400 font-semibold">Healthy</span></td>
-                  <td className={`px-6 py-4`}><button className="text-blue-500 hover:text-blue-400 text-sm font-medium">View</button></td>
-                </tr>
-                <tr className={theme === "dark" ? "border-t border-slate-800 hover:bg-slate-800/50" : "border-t border-slate-200 hover:bg-slate-100"}>
-                  <td className={`px-6 py-4 font-medium ${textClass}`}>Aave</td>
-                  <td className={`px-6 py-4 ${textClass}`}>820</td>
-                  <td className={`px-6 py-4 ${textClass}`}>80 bps</td>
-                  <td className={`px-6 py-4 ${textClass}`}>0.8%</td>
-                  <td className={`px-6 py-4`}><span className="text-green-400 font-semibold">Healthy</span></td>
-                  <td className={`px-6 py-4`}><button className="text-blue-500 hover:text-blue-400 text-sm font-medium">View</button></td>
-                </tr>
-                <tr className={theme === "dark" ? "border-t border-slate-800 hover:bg-slate-800/50" : "border-t border-slate-200 hover:bg-slate-100"}>
-                  <td className={`px-6 py-4 font-medium ${textClass}`}>Uniswap</td>
-                  <td className={`px-6 py-4 ${textClass}`}>600</td>
-                  <td className={`px-6 py-4 ${textClass}`}>200 bps</td>
-                  <td className={`px-6 py-4 ${textClass}`}>2.0%</td>
-                  <td className={`px-6 py-4`}><span className="text-yellow-400 font-semibold">Watch</span></td>
-                  <td className={`px-6 py-4`}><button className="text-blue-500 hover:text-blue-400 text-sm font-medium">View</button></td>
-                </tr>
-              </tbody>
-            </table>
+          <div className={`border rounded-xl p-6 ${cardBgClass}`}>
+            <h3 className={`text-lg font-semibold ${textClass} mb-4`}>Deployed Contracts</h3>
+            <div className="space-y-4">
+              {contractRows.map((row) => (
+                <div key={row.label} className={`border rounded-lg p-4 ${theme === "dark" ? "border-slate-800" : "border-slate-200"}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className={`font-semibold ${textClass}`}>{row.label}</p>
+                      <p className={`font-mono text-sm ${secondaryTextClass}`}>{formatAddress(row.address)}</p>
+                    </div>
+                    <span className={`text-xs ${secondaryTextClass}`}>{row.value}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          <div className={`border rounded-xl p-6 ${cardBgClass}`}>
+            <h3 className={`text-lg font-semibold ${textClass} mb-4`}>Risk Bands</h3>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={riskBars}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#1e293b" : "#e2e8f0"} />
+                  <XAxis dataKey="name" stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
+                  <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="#f97316" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InsightCard: React.FC<{
+  title: string;
+  subtitle: string;
+  icon: React.ComponentProps<typeof IconImage>["name"];
+  accent: string;
+}> = ({ title, subtitle, icon, accent }) => {
+  const { theme } = useTheme();
+  const textClass = theme === "dark" ? "text-white" : "text-slate-900";
+  const secondaryTextClass = theme === "dark" ? "text-slate-400" : "text-slate-600";
+
+  return (
+    <div className={`relative overflow-hidden rounded-xl border p-6 ${theme === "dark" ? "border-slate-800 bg-slate-900" : "border-slate-200 bg-white"}`}>
+      <div className={`absolute inset-0 bg-gradient-to-br ${accent}`} />
+      <div className="relative flex items-center gap-5">
+        <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
+          <IconImage name={icon} className="h-16 w-16" alt="" />
+        </div>
+        <div>
+          <h3 className={`text-2xl font-bold ${textClass}`}>{title}</h3>
+          <p className={`mt-2 max-w-xl text-sm ${secondaryTextClass}`}>{subtitle}</p>
         </div>
       </div>
     </div>

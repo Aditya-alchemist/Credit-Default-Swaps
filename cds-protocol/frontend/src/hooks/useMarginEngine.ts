@@ -1,4 +1,4 @@
-import { useReadContract, usePrepareContractWrite, useContractWrite } from "wagmi";
+import { useReadContract, useWriteContract } from "wagmi";
 import { SEPOLIA_ADDRESSES, MARGIN_ENGINE_ABI } from "../config/contracts";
 
 // Read: Compute Mark-to-Market loss for position
@@ -8,7 +8,7 @@ export const useComputeMtM = (positionId: number | undefined) => {
     abi: MARGIN_ENGINE_ABI,
     functionName: "computeMtM",
     args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    query: { enabled: positionId !== undefined },
+    query: { enabled: positionId !== undefined && positionId > 0 },
   });
 };
 
@@ -19,7 +19,7 @@ export const useComputeCurrentRatio = (positionId: number | undefined) => {
     abi: MARGIN_ENGINE_ABI,
     functionName: "computeCurrentRatio",
     args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    query: { enabled: positionId !== undefined },
+    query: { enabled: positionId !== undefined && positionId > 0 },
   });
 };
 
@@ -30,7 +30,7 @@ export const useIsUnderwater = (positionId: number | undefined) => {
     abi: MARGIN_ENGINE_ABI,
     functionName: "isUnderwater",
     args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    query: { enabled: positionId !== undefined },
+    query: { enabled: positionId !== undefined && positionId > 0 },
   });
 };
 
@@ -41,32 +41,46 @@ export const useMarginCallDeadline = (positionId: number | undefined) => {
     abi: MARGIN_ENGINE_ABI,
     functionName: "getMarginCallDeadline",
     args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    query: { enabled: positionId !== undefined },
+    query: { enabled: positionId !== undefined && positionId > 0 },
   });
 };
 
 // Write: Check margins (trigger margin call if needed)
 export const useCheckAndFlag = (positionId?: number) => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.MarginEngine,
-    abi: MARGIN_ENGINE_ABI,
-    functionName: "checkAndFlag",
-    args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    enabled: positionId !== undefined,
-  });
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  const { writeContractAsync } = useWriteContract();
+  return {
+    write: {
+      writeAsync: async () => {
+        if (positionId === undefined) {
+          throw new Error("Position ID is required");
+        }
+        return writeContractAsync({
+          address: SEPOLIA_ADDRESSES.MarginEngine,
+          abi: MARGIN_ENGINE_ABI,
+          functionName: "checkAndFlag",
+          args: [BigInt(positionId)],
+        });
+      },
+    },
+  };
 };
 
 // Write: Liquidate a position
 export const useLiquidatePosition = (positionId?: number) => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.MarginEngine,
-    abi: MARGIN_ENGINE_ABI,
-    functionName: "liquidatePosition",
-    args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    enabled: positionId !== undefined,
-  });
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  const { writeContractAsync } = useWriteContract();
+  return {
+    write: {
+      writeAsync: async () => {
+        if (positionId === undefined) {
+          throw new Error("Position ID is required");
+        }
+        return writeContractAsync({
+          address: SEPOLIA_ADDRESSES.MarginEngine,
+          abi: MARGIN_ENGINE_ABI,
+          functionName: "liquidatePosition",
+          args: [BigInt(positionId)],
+        });
+      },
+    },
+  };
 };

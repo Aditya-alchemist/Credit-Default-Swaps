@@ -51,7 +51,7 @@ export const ConfirmTxModal: React.FC<ConfirmTxModalProps> = ({
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded font-medium text-white text-sm transition flex items-center justify-center gap-2"
           >
             {isLoading && (
-              <div className="inline-block animate-spin">⏳</div>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
             )}
             {confirmLabel}
           </button>

@@ -1,9 +1,7 @@
 import { getDefaultWallets } from "@rainbow-me/rainbowkit";
-import { configureChains, createConfig } from "wagmi";
+import { createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
-import { publicProvider } from "wagmi/providers/public";
-
-const { chains, publicClient } = configureChains([sepolia], [publicProvider()]);
+const chains = [sepolia];
 
 const { connectors } = getDefaultWallets({
   appName: "CDS Protocol",
@@ -13,8 +11,11 @@ const { connectors } = getDefaultWallets({
 
 export const wagmiConfig = createConfig({
   autoConnect: true,
+  chains,
   connectors,
-  publicClient,
+  transports: {
+    [sepolia.id]: http(),
+  },
 });
 
 export { chains };

@@ -1,0 +1,89 @@
+
+> cds-protocol-frontend@0.1.0 dev
+> vite --host 127.0.0.1
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m1045[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/utils/constants.js[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/CreditScoreCard.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/GreeksDashboard.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/HealthFactor.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/MarginCallAlert.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/MtMChart.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/Navbar.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/SpreadQuote.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/CDSDesk.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Lending.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Oracle.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Portfolio.jsx[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/utils/formatting.js[22m
+[2m11:21:00 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/utils/spreadMath.js[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/CreditScoreCard.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/GreeksDashboard.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/HealthFactor.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/MarginCallAlert.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/MtMChart.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/Navbar.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/utils/constants.js[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/Navbar.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/SpreadQuote.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/CDSDesk.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Lending.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Oracle.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Portfolio.jsx[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/utils/formatting.js[22m
+[2m11:30:40 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/utils/spreadMath.js[22m
+[2m11:31:36 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Navbar.tsx, /src/index.css[22m
+[2m11:31:41 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/CDSMarket.tsx[22m
+[2m11:31:50 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Dashboard.tsx, /src/pages/CDSMarket.tsx, /src/pages/Admin.tsx, /src/pages/PositionDetail.tsx, /src/pages/LendingPool.tsx, /src/pages/EntityRisk.tsx[22m
+[2m11:31:59 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Dashboard.tsx, /src/pages/LendingPool.tsx[22m
+[2m11:32:14 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Admin.tsx, /src/index.css[22m
+[2m11:32:47 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CDSMarket.tsx, /src/index.css[22m
+[2m11:33:26 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/LendingPool.tsx, /src/index.css[22m
+[2m11:33:37 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/LendingPool.tsx, /src/index.css[22m
+[2m11:33:38 pm[22m [36m[1m[vite][22m[39m [32m✨ new dependencies optimized: [33mviem[32m[39m
+[2m11:33:38 pm[22m [36m[1m[vite][22m[39m [32m✨ optimized dependencies changed. reloading[39m
+[2m11:52:54 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/TxContext.tsx, /src/index.css[22m
+[2m11:52:54 pm[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/TxContext.tsx[22m Could not Fast Refresh ("default" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m11:52:54 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/App.tsx, /src/pages/PositionDetail.tsx, /src/pages/LendingPool.tsx, /src/pages/CDSMarket.tsx, /src/pages/Admin.tsx[22m
+[2m11:53:00 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/TxContext.tsx, /src/index.css[22m
+[2m11:53:01 pm[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/TxContext.tsx[22m Could not Fast Refresh ("default" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m11:53:01 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/App.tsx, /src/pages/PositionDetail.tsx, /src/pages/LendingPool.tsx, /src/pages/CDSMarket.tsx, /src/pages/Admin.tsx[22m
+[2m11:53:34 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.tsx, /src/index.css[22m
+[2m11:53:39 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Navbar.tsx, /src/index.css[22m
+[2m11:53:47 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Navbar.tsx, /src/index.css[22m
+[2m11:53:54 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Admin.tsx, /src/index.css[22m
+[2m11:54:02 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Admin.tsx, /src/index.css[22m
+[2m11:54:31 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.tsx, /src/index.css[22m
+[2m11:54:44 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Admin.tsx, /src/index.css[22m
+[2m11:55:04 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Admin.tsx, /src/index.css[22m
+[2m11:55:08 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.tsx, /src/index.css[22m
+[2m11:55:13 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/TxContext.tsx, /src/index.css[22m
+[2m11:55:13 pm[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/TxContext.tsx[22m Could not Fast Refresh ("default" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m11:55:13 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/App.tsx, /src/pages/PositionDetail.tsx, /src/pages/LendingPool.tsx, /src/pages/CDSMarket.tsx, /src/pages/Admin.tsx[22m
+[2m11:55:18 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/ConfirmTxModal.tsx[22m
+[2m12:05:54 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Dashboard.tsx, /src/pages/CDSMarket.tsx, /src/pages/Admin.tsx, /src/pages/PositionDetail.tsx, /src/pages/LendingPool.tsx, /src/pages/EntityRisk.tsx[22m
+[2m12:06:01 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Portfolio.tsx, /src/index.css[22m
+[2m12:06:44 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Portfolio.tsx[22m
+[2m12:11:44 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.tsx, /src/index.css[22m
+[2m12:11:55 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.tsx, /src/index.css[22m
+[2m12:12:04 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.tsx, /src/index.css[22m
+[2m12:12:14 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CDSMarket.tsx, /src/index.css[22m
+[2m12:12:21 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CDSMarket.tsx, /src/index.css[22m
+[2m12:12:28 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/LendingPool.tsx, /src/index.css[22m
+[2m12:12:48 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/EntityRisk.tsx, /src/index.css[22m
+[2m12:47:33 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Dashboard.tsx, /src/pages/CDSMarket.tsx, /src/pages/Admin.tsx, /src/pages/PositionDetail.tsx, /src/pages/LendingPool.tsx, /src/pages/Portfolio.tsx, /src/pages/EntityRisk.tsx[22m
+[2m12:47:40 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/EntityRisk.tsx, /src/pages/Admin.tsx[22m
+[2m12:47:51 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.tsx, /src/index.css[22m
+[2m12:47:57 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.tsx, /src/index.css[22m
+[2m12:48:27 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/EntityRisk.tsx, /src/index.css[22m
+[2m12:48:55 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/MarginDashboard.tsx, /src/index.css[22m
+[2m12:49:39 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/MarginDashboard.tsx[22m
+[2m12:50:24 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m12:50:30 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.tsx, /src/index.css[22m
+[2m12:50:41 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Portfolio.tsx, /src/index.css[22m

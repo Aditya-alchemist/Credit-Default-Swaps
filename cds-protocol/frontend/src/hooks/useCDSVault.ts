@@ -1,7 +1,6 @@
 import {
   useReadContract,
-  usePrepareContractWrite,
-  useContractWrite,
+  useWriteContract,
 } from "wagmi";
 import { SEPOLIA_ADDRESSES, CDS_VAULT_ABI } from "../config/contracts";
 
@@ -21,7 +20,7 @@ export const useCDSPosition = (positionId: number | undefined) => {
     abi: CDS_VAULT_ABI,
     functionName: "getPosition",
     args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    query: { enabled: positionId !== undefined },
+    query: { enabled: positionId !== undefined && positionId > 0 },
   });
 };
 
@@ -32,7 +31,18 @@ export const useIsPositionActive = (positionId: number | undefined) => {
     abi: CDS_VAULT_ABI,
     functionName: "isActive",
     args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    query: { enabled: positionId !== undefined },
+    query: { enabled: positionId !== undefined && positionId > 0 },
+  });
+};
+
+// Read: Get a position's collateral ratio
+export const useCollateralRatio = (positionId: number | undefined) => {
+  return useReadContract({
+    address: SEPOLIA_ADDRESSES.CDSVault,
+    abi: CDS_VAULT_ABI,
+    functionName: "getCollateralRatio",
+    args: positionId !== undefined ? [BigInt(positionId)] : undefined,
+    query: { enabled: positionId !== undefined && positionId > 0 },
   });
 };
 
@@ -59,31 +69,36 @@ export const useVaultOwner = () => {
 // Write: Open a new CDS position
 export const useOpenCDS = (params?: {
   buyer: string;
+  seller: string;
   referenceEntity: string;
   notional: number | bigint;
   spreadBps: number | bigint;
-  maturity: number | bigint;
-  collateral: number | bigint;
+  maturityDays: number | bigint;
 }) => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.CDSVault,
-    abi: CDS_VAULT_ABI,
-    functionName: "openCDS",
-    args: params
-      ? [
-          params.buyer,
-          params.referenceEntity,
-          BigInt(params.notional),
-          BigInt(params.spreadBps),
-          BigInt(params.maturity),
-          BigInt(params.collateral),
-        ]
-      : undefined,
-    enabled: !!params,
-  });
+  const { writeContractAsync } = useWriteContract();
 
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  return {
+    write: {
+      writeAsync: async () => {
+        if (!params) {
+          throw new Error("All CDS parameters are required");
+        }
+        return writeContractAsync({
+          address: SEPOLIA_ADDRESSES.CDSVault,
+          abi: CDS_VAULT_ABI,
+          functionName: "openCDS",
+          args: [
+            params.buyer,
+            params.seller,
+            params.referenceEntity,
+            BigInt(params.notional),
+            BigInt(params.spreadBps),
+            BigInt(params.maturityDays),
+          ],
+        });
+      },
+    },
+  };
 };
 
 // Write: Top up collateral on existing position
@@ -91,55 +106,72 @@ export const useTopUpCollateral = (
   positionId?: number,
   additionalCollateral?: number | bigint
 ) => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.CDSVault,
-    abi: CDS_VAULT_ABI,
-    functionName: "topUpCollateral",
-    args:
-      positionId !== undefined && additionalCollateral !== undefined
-        ? [BigInt(positionId), BigInt(additionalCollateral)]
-        : undefined,
-    enabled: positionId !== undefined && additionalCollateral !== undefined,
-  });
+  const { writeContractAsync } = useWriteContract();
 
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  return {
+    write: {
+      writeAsync: async () => {
+        if (positionId === undefined || additionalCollateral === undefined) {
+          throw new Error("Position ID and collateral amount are required");
+        }
+        return writeContractAsync({
+          address: SEPOLIA_ADDRESSES.CDSVault,
+          abi: CDS_VAULT_ABI,
+          functionName: "topUpCollateral",
+          args: [BigInt(positionId), BigInt(additionalCollateral)],
+        });
+      },
+    },
+  };
 };
 
 // Write: Expire a position
 export const useExpirePosition = (positionId?: number) => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.CDSVault,
-    abi: CDS_VAULT_ABI,
-    functionName: "expirePosition",
-    args: positionId !== undefined ? [BigInt(positionId)] : undefined,
-    enabled: positionId !== undefined,
-  });
+  const { writeContractAsync } = useWriteContract();
 
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  return {
+    write: {
+      writeAsync: async () => {
+        if (positionId === undefined) {
+          throw new Error("Position ID is required");
+        }
+        return writeContractAsync({
+          address: SEPOLIA_ADDRESSES.CDSVault,
+          abi: CDS_VAULT_ABI,
+          functionName: "expirePosition",
+          args: [BigInt(positionId)],
+        });
+      },
+    },
+  };
 };
 
 // Write: Pause vault
 export const usePauseVault = () => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.CDSVault,
-    abi: CDS_VAULT_ABI,
-    functionName: "pause",
-    enabled: true,
-  });
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  const { writeContractAsync } = useWriteContract();
+  return {
+    write: {
+      writeAsync: async () =>
+        writeContractAsync({
+          address: SEPOLIA_ADDRESSES.CDSVault,
+          abi: CDS_VAULT_ABI,
+          functionName: "pause",
+        }),
+    },
+  };
 };
 
 // Write: Unpause vault
 export const useUnpauseVault = () => {
-  const prepare = usePrepareContractWrite({
-    address: SEPOLIA_ADDRESSES.CDSVault,
-    abi: CDS_VAULT_ABI,
-    functionName: "unpause",
-    enabled: true,
-  });
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+  const { writeContractAsync } = useWriteContract();
+  return {
+    write: {
+      writeAsync: async () =>
+        writeContractAsync({
+          address: SEPOLIA_ADDRESSES.CDSVault,
+          abi: CDS_VAULT_ABI,
+          functionName: "unpause",
+        }),
+    },
+  };
 };

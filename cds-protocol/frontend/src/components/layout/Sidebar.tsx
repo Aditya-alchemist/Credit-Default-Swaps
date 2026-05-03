@@ -1,26 +1,29 @@
 import React from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { useLocation, Link } from "react-router-dom";
+import { IconImage } from "../IconImage";
 
 interface NavItem {
   label: string;
   path: string;
-  icon: string;
+  icon: React.ComponentProps<typeof IconImage>["name"];
   badge?: number;
 }
 
 const MAIN_PAGES: NavItem[] = [
-  { label: "Dashboard", path: "/", icon: "💰" },
-  { label: "CDS Market", path: "/cds-market", icon: "🛡️" },
-  { label: "Lending Pool", path: "/lending", icon: "💳" },
-  { label: "Entity Risk", path: "/entity-risk", icon: "📊" },
-  { label: "Margin Dashboard", path: "/margin-dashboard", icon: "⚠️" },
-  { label: "Admin Panel", path: "/admin", icon: "⚙️" },
+  { label: "Dashboard", path: "/", icon: "dashboard" },
+  { label: "CDS Market", path: "/cds-market", icon: "shield" },
+  { label: "Lending Pool", path: "/lending", icon: "card" },
+  { label: "Entity Risk", path: "/entity-risk", icon: "chart" },
+  { label: "Oracle Monitor", path: "/oracle-monitor", icon: "oracle" },
+  { label: "Margin Dashboard", path: "/margin-dashboard", icon: "alert" },
+  { label: "Portfolio", path: "/portfolio", icon: "dashboard" },
+  { label: "Admin Panel", path: "/admin", icon: "admin" },
 ];
 
 const SUPPORT: NavItem[] = [
-  { label: "Documentation", path: "#", icon: "📖" },
-  { label: "Support", path: "#", icon: "🆘" },
+  { label: "Documentation", path: "#", icon: "docs" },
+  { label: "Support", path: "#", icon: "support" },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -49,14 +52,14 @@ export const Sidebar: React.FC = () => {
       to={item.path}
       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${textClass} ${activeClass(item.path)}`}
     >
-      <span className="text-xl">{item.icon}</span>
+      <IconImage name={item.icon} className="h-6 w-6 shrink-0" alt="" />
       <span className="text-sm font-medium">{item.label}</span>
       {item.badge && (
         <span className="ml-auto bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
           {item.badge}
         </span>
       )}
-      <span className="text-xl ml-auto opacity-50">›</span>
+      <span className="text-xl ml-auto opacity-50">&gt;</span>
     </Link>
   );
 

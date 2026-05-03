@@ -1,8 +1,7 @@
 import {
   useReadContract,
-  usePrepareContractWrite,
-  useContractWrite,
   useAccount,
+  useWriteContract,
 } from "wagmi";
 import { parseUnits } from "viem";
 
@@ -39,6 +38,16 @@ const ERC20_ABI = [
     name: "decimals",
     outputs: [{ name: "", type: "uint8" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "mint",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
 ];
 
@@ -87,23 +96,52 @@ export const useApproveToken = (params?: {
   spender: string;
   amount: number | bigint | string;
 }) => {
-  const prepare = usePrepareContractWrite({
-    address: params?.tokenAddress ? (params.tokenAddress as `0x${string}`) : undefined,
-    abi: ERC20_ABI,
-    functionName: "approve",
-    args: params
-      ? [
-          params.spender as `0x${string}`,
-          typeof params.amount === "string"
-            ? BigInt(params.amount)
-            : BigInt(params.amount),
-        ]
-      : undefined,
-    enabled: !!params,
-  });
+  const { writeContractAsync } = useWriteContract();
+  return {
+    write: {
+      writeAsync: async () =>
+        writeContractAsync({
+          address: params?.tokenAddress ? (params.tokenAddress as `0x${string}`) : undefined,
+          abi: ERC20_ABI,
+          functionName: "approve",
+          args: params
+            ? [
+                params.spender as `0x${string}`,
+                typeof params.amount === "string"
+                  ? BigInt(params.amount)
+                  : BigInt(params.amount),
+              ]
+            : undefined,
+        }),
+    },
+  };
+};
 
-  const write = useContractWrite(prepare.config);
-  return { prepare, write };
+// Write: Mint mock ERC20 tokens to a recipient.
+export const useMintToken = (params?: {
+  tokenAddress: string;
+  to: string;
+  amount: number | bigint | string;
+}) => {
+  const { writeContractAsync } = useWriteContract();
+  return {
+    write: {
+      writeAsync: async () =>
+        writeContractAsync({
+          address: params?.tokenAddress ? (params.tokenAddress as `0x${string}`) : undefined,
+          abi: ERC20_ABI,
+          functionName: "mint",
+          args: params
+            ? [
+                params.to as `0x${string}`,
+                typeof params.amount === "string"
+                  ? BigInt(params.amount)
+                  : BigInt(params.amount),
+              ]
+            : undefined,
+        }),
+    },
+  };
 };
 
 // Helper: Check if approval is needed

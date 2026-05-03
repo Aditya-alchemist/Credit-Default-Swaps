@@ -1,6 +1,7 @@
 import React from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useTheme } from "../../context/ThemeContext";
+import { IconImage } from "../IconImage";
 
 export const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -18,7 +19,7 @@ export const Navbar: React.FC = () => {
       <div className="h-full flex items-center justify-between px-4 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold">🛡️</span>
+          <IconImage name="shield" className="h-8 w-8" alt="" />
           <h1 className={`text-2xl font-bold ${textClass}`}>CDS Protocol</h1>
         </div>
 
@@ -37,23 +38,7 @@ export const Navbar: React.FC = () => {
 
         {/* Right Side - Actions */}
         <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <button className={`p-2 rounded-lg transition ${
-            theme === "dark"
-              ? "hover:bg-slate-800"
-              : "hover:bg-slate-100"
-          }`}>
-            <span className="text-xl">🔔</span>
-          </button>
-
-          {/* Settings */}
-          <button className={`p-2 rounded-lg transition ${
-            theme === "dark"
-              ? "hover:bg-slate-800"
-              : "hover:bg-slate-100"
-          }`}>
-            <span className="text-xl">⚙️</span>
-          </button>
+          {/* Notifications intentionally hidden for now */}
 
           {/* Theme Toggle */}
           <button
@@ -65,39 +50,19 @@ export const Navbar: React.FC = () => {
             }`}
             title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           >
-            {theme === "dark" ? "☀️" : "🌙"}
+            <span className={`block h-5 w-5 rounded-full ${
+              theme === "dark"
+                ? "bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.18)]"
+                : "bg-slate-700 shadow-[inset_6px_-3px_0_0_rgba(255,255,255,0.85)]"
+            }`} />
           </button>
-
-          {/* User Profile */}
-          <div className={`hidden sm:flex items-center gap-3 px-3 py-2 rounded-lg ${
-            theme === "dark"
-              ? "bg-slate-800"
-              : "bg-slate-100"
-          }`}>
-            <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
-              AR
-            </div>
-            <div className="hidden md:block text-left">
-              <p className={`text-sm font-semibold ${textClass}`}>Austin Robertson</p>
-              <p className={`text-xs ${theme === "dark" ? "text-slate-500" : "text-slate-500"}`}>
-                Admin
-              </p>
-            </div>
-          </div>
 
           {/* Wallet Button */}
           <div className="hidden sm:block">
             <ConnectButton />
           </div>
 
-          {/* Language */}
-          <button className={`p-2 rounded-lg transition ${
-            theme === "dark"
-              ? "hover:bg-slate-800"
-              : "hover:bg-slate-100"
-          }`}>
-            <span className="text-xl">🇬🇧</span>
-          </button>
+          {/* Language selector removed to declutter header */}
         </div>
       </div>
     </nav>

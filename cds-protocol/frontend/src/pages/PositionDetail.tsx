@@ -1,32 +1,65 @@
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
-import {
-  AreaChart,
-  Area,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-const HISTORY = [
-  { date: "Jan", spread: 180, mtm: 0.8 },
-  { date: "Feb", spread: 195, mtm: 1.2 },
-  { date: "Mar", spread: 210, mtm: 1.8 },
-  { date: "Apr", spread: 235, mtm: 2.4 },
-  { date: "May", spread: 280, mtm: 2.9 },
-  { date: "Jun", spread: 350, mtm: 3.2 },
-];
-
-import { useTopUpCollateral, useExpirePosition } from "../hooks/useCDSVault";
-import { useCollectPremium } from "../hooks/usePremiumEngine";
+import { formatAddress, formatBps, formatDate, formatDateTime, formatNumber, formatTimeRemaining, formatUsdc } from "../utils/formatters";
+import { useCDSPosition, useTopUpCollateral, useExpirePosition, useIsPositionActive } from "../hooks/useCDSVault";
+import { useCollectPremium, useNextPremiumAmount, useNextPremiumDue, useIsPremiumMissed } from "../hooks/usePremiumEngine";
+import { useComputeCurrentRatio, useComputeMtM, useIsUnderwater, useMarginCallDeadline } from "../hooks/useMarginEngine";
+import { useCreditEntityRow } from "../hooks/useCreditOracle";
 import { useTx } from "../context/TxContext";
 
 export default function PositionDetail() {
   const { id } = useParams();
   const { theme } = useTheme();
+  const positionId = id ? Number(id) : undefined;
+  const positionQuery = useCDSPosition(positionId);
+  const position = positionQuery.data as any;
+  const referenceEntity = String(position?.referenceEntity ?? position?.[2] ?? "");
+  const oracleQuery = useCreditEntityRow(referenceEntity || undefined);
+  const mtmQuery = useComputeMtM(positionId);
+  const ratioQuery = useComputeCurrentRatio(positionId);
+  const underwaterQuery = useIsUnderwater(positionId);
+  const deadlineQuery = useMarginCallDeadline(positionId);
+  const premiumDueQuery = useNextPremiumDue(positionId);
+  const premiumAmountQuery = useNextPremiumAmount(positionId);
+  const premiumMissedQuery = useIsPremiumMissed(positionId);
+  const activeQuery = useIsPositionActive(positionId);
+
+  const buyer = String(position?.buyer ?? position?.[0] ?? "");
+  const seller = String(position?.seller ?? position?.[1] ?? "");
+  const notionalUnits = BigInt(position?.notional ?? position?.[3] ?? 0);
+  const collateralUnits = BigInt(position?.collateral ?? position?.[5] ?? 0);
+  const entrySpreadBps = Number(position?.spreadBps ?? position?.[4] ?? 0);
+  const maturity = Number(position?.maturity ?? position?.[6] ?? 0);
+  const openTimestamp = Number(position?.openTimestamp ?? position?.[7] ?? 0);
+  const lastPremiumPaid = Number(position?.lastPremiumPaid ?? position?.[8] ?? 0);
+  const state = Number(position?.state ?? position?.[9] ?? 0);
+
+  const creditRow = oracleQuery.data as any;
+  const currentSpreadBps = Number(creditRow?.spreadBps ?? creditRow?.[1] ?? entrySpreadBps);
+  const creditScore = Number(creditRow?.score ?? creditRow?.[0] ?? 0);
+  const oracleUpdatedAt = Number(creditRow?.updatedAt ?? creditRow?.[5] ?? 0);
+
+  const mtmLossRaw = BigInt(mtmQuery.data ?? 0n);
+  const currentRatioBps = Number(ratioQuery.data ?? 0) || (notionalUnits > 0n ? Number((collateralUnits * 10000n) / notionalUnits) : 0);
+  const currentRatioPercent = currentRatioBps / 100;
+  const nextPremiumDue = Number(premiumDueQuery.data ?? 0);
+  const nextPremiumAmount = BigInt(premiumAmountQuery.data ?? 0n);
+  const marginDeadline = Number(deadlineQuery.data ?? 0);
+  const isUnderwater = Boolean(underwaterQuery.data);
+  const isActive = Boolean(activeQuery.data);
+  const missedPremium = Boolean(premiumMissedQuery.data);
+
+  const effectiveExposure = Number(formatUsdc(notionalUnits)) + Number(formatUsdc(mtmLossRaw));
+  const nextPremiumCountdown = nextPremiumDue > 0 ? formatTimeRemaining(Math.max(0, nextPremiumDue - Math.floor(Date.now() / 1000))) : "Unavailable";
+  const marginCountdown = marginDeadline > 0 ? formatTimeRemaining(Math.max(0, marginDeadline - Math.floor(Date.now() / 1000))) : "Unavailable";
+
+  const statusLabel = !isActive || state === 2 ? "DEFAULTED" : state === 3 ? "EXPIRED" : isUnderwater || currentRatioBps < 12000 ? "MARGIN CALL" : missedPremium ? "PREMIUM MISSED" : "ACTIVE";
+  const statusClass = statusLabel === "ACTIVE"
+    ? "bg-green-500/20 text-green-400"
+    : statusLabel === "MARGIN CALL"
+      ? "bg-yellow-500/20 text-yellow-400"
+      : "bg-red-500/20 text-red-400";
 
   const bgClass = theme === "dark" ? "bg-slate-950" : "bg-slate-50";
   const cardBgClass = theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200";
@@ -39,71 +72,64 @@ export default function PositionDetail() {
         <div className={`border rounded-xl p-6 ${cardBgClass}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className={`text-3xl font-bold ${textClass}`}>CDS Position #{id}</h1>
-              <p className={secondaryTextClass}>Buyer 0xAlice... vs seller 0xBob... on Compound Protocol</p>
+              <h1 className={`text-3xl font-bold ${textClass}`}>CDS Position #{id ?? "-"}</h1>
+              <p className={secondaryTextClass}>
+                Buyer {buyer ? formatAddress(buyer) : "—"} vs seller {seller ? formatAddress(seller) : "—"} on {referenceEntity ? formatAddress(referenceEntity) : "the vault"}
+              </p>
             </div>
-            <span className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 font-semibold">ACTIVE</span>
+            <span className={`px-4 py-2 rounded-lg font-semibold ${statusClass}`}>{statusLabel}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
-            <Metric label="Buyer" value="0xAlice..." />
-            <Metric label="Seller" value="0xBob..." />
-            <Metric label="Reference Entity" value="Compound Protocol" />
-            <Metric label="Maturity" value="Dec 31 2025" />
+            <Metric label="Buyer" value={buyer ? formatAddress(buyer) : "—"} />
+            <Metric label="Seller" value={seller ? formatAddress(seller) : "—"} />
+            <Metric label="Reference Entity" value={referenceEntity ? formatAddress(referenceEntity) : "—"} />
+            <Metric label="Maturity" value={maturity ? formatDate(maturity) : "—"} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
-            <Metric label="Notional" value="$100.00" highlight />
-            <Metric label="Collateral" value="$120.00 (120.0%)" highlight />
-            <Metric label="Entry Spread" value="200 bps" highlight />
-            <Metric label="Current Spread" value="350 bps" highlight />
+            <Metric label="Notional" value={`$${formatUsdc(notionalUnits)} USDC`} highlight />
+            <Metric label="Collateral" value={`$${formatUsdc(collateralUnits)} (${formatNumber(currentRatioPercent, 1)}%)`} highlight />
+            <Metric label="Entry Spread" value={formatBps(entrySpreadBps)} highlight />
+            <Metric label="Current Spread" value={formatBps(currentSpreadBps)} highlight />
           </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className={`xl:col-span-2 border rounded-xl p-6 ${cardBgClass}`}>
             <h2 className={`text-lg font-semibold ${textClass} mb-4`}>Live MtM</h2>
-            <div className="w-full h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={HISTORY}>
-                  <defs>
-                    <linearGradient id="positionMtm" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#334155" : "#e2e8f0"} />
-                  <XAxis dataKey="date" stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
-                  <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc",
-                      border: `1px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}`,
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Area type="monotone" dataKey="spread" stroke="#f59e0b" fill="url(#positionMtm)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Metric label="Open Timestamp" value={openTimestamp ? formatDateTime(openTimestamp) : "—"} />
+              <Metric label="Last Premium Paid" value={lastPremiumPaid ? formatDateTime(lastPremiumPaid) : "Never"} />
+              <Metric label="Oracle Score" value={oracleUpdatedAt ? String(creditScore) : "Waiting"} />
+              <Metric label="Oracle Updated" value={oracleUpdatedAt ? formatDateTime(oracleUpdatedAt) : "Waiting for oracle"} />
             </div>
           </div>
 
           <div className={`border rounded-xl p-6 ${cardBgClass} space-y-4`}>
             <div>
               <p className={`text-sm ${secondaryTextClass}`}>Current MtM Loss</p>
-              <p className="text-3xl font-bold text-orange-400">$3.20</p>
+              <p className="text-3xl font-bold text-orange-400">${formatUsdc(mtmLossRaw)}</p>
             </div>
             <div>
               <p className={`text-sm ${secondaryTextClass}`}>Effective Exposure</p>
-              <p className={`text-2xl font-bold ${textClass}`}>$103.20</p>
+              <p className={`text-2xl font-bold ${textClass}`}>${formatNumber(effectiveExposure, 2)}</p>
             </div>
             <div>
               <p className={`text-sm ${secondaryTextClass}`}>Current Ratio</p>
-              <p className="text-2xl font-bold text-yellow-400">116.3% ⚠️</p>
+              <p className="text-2xl font-bold text-yellow-400">{formatNumber(currentRatioPercent, 1)}% {isUnderwater ? "⚠️" : ""}</p>
             </div>
             <div>
               <p className={`text-sm ${secondaryTextClass}`}>Next Premium Due</p>
-              <p className={`text-lg font-semibold ${textClass}`}>in 45 days</p>
+              <p className={`text-lg font-semibold ${textClass}`}>{nextPremiumDue ? `in ${nextPremiumCountdown}` : "Unavailable"}</p>
+            </div>
+            <div>
+              <p className={`text-sm ${secondaryTextClass}`}>Next Premium Amount</p>
+              <p className={`text-lg font-semibold ${textClass}`}>${formatUsdc(nextPremiumAmount)}</p>
+            </div>
+            <div>
+              <p className={`text-sm ${secondaryTextClass}`}>Margin Deadline</p>
+              <p className={`text-lg font-semibold ${textClass}`}>{marginDeadline ? (marginCountdown === "Expired" ? "Expired" : `in ${marginCountdown}`) : "No deadline"}</p>
             </div>
           </div>
         </div>
@@ -131,9 +157,10 @@ function PositionActions({ id }: { id: string | undefined | null }) {
   const posId = id ? Number(id) : undefined;
   const [topAmount, setTopAmount] = useState(0);
   const { notifyPending, notifySuccess, notifyError } = useTx();
-  const { prepare: topUpPrepare, write: topUpWrite } = useTopUpCollateral(posId, topAmount || undefined);
-  const { prepare: expirePrepare, write: expireWrite } = useExpirePosition(posId);
-  const { prepare: collectPrepare, write: collectWrite } = useCollectPremium(posId);
+  const { theme } = useTheme();
+  const { write: topUpWrite } = useTopUpCollateral(posId, topAmount || undefined);
+  const { write: expireWrite } = useExpirePosition(posId);
+  const { write: collectWrite } = useCollectPremium(posId);
 
   return (
     <div className="flex flex-wrap gap-4">
@@ -170,7 +197,7 @@ function PositionActions({ id }: { id: string | undefined | null }) {
           }}
           className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition"
         >
-          Top Up Collateral
+          Top-up Collateral
         </button>
       </div>
 

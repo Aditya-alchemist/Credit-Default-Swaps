@@ -17,6 +17,7 @@ import MarginDashboard from "./pages/MarginDashboard";
 import Admin from "./pages/Admin";
 import Portfolio from "./pages/Portfolio.tsx";
 import PositionDetail from "./pages/PositionDetail";
+import OracleMonitor from "./pages/OracleMonitor";
 
 const queryClient = new QueryClient();
 
@@ -25,30 +26,31 @@ export default function App() {
     <WagmiConfig config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider chains={chains}>
-                    <ThemeProvider>
-                      <TxProvider>
-          <Router>
-              <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50">
-                <Sidebar />
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <Navbar />
-                  <main className="flex-1 overflow-auto">
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/cds-market" element={<CDSMarket />} />
-                <Route path="/lending" element={<LendingPool />} />
-                <Route path="/entity-risk" element={<EntityRisk />} />
-                <Route path="/margin-dashboard" element={<MarginDashboard />} />
-                <Route path="/positions/:id" element={<PositionDetail />} />
-                <Route path="/portfolio" element={<Portfolio />} />
-                <Route path="/admin" element={<Admin />} />
-              </Routes>
-                  </main>
+          <ThemeProvider>
+            <TxProvider>
+              <Router>
+                <div className="flex h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
+                  <Sidebar />
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <Navbar />
+                    <main className="flex-1 overflow-auto">
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/cds-market" element={<CDSMarket />} />
+                        <Route path="/lending" element={<LendingPool />} />
+                        <Route path="/entity-risk" element={<EntityRisk />} />
+                        <Route path="/margin-dashboard" element={<MarginDashboard />} />
+                        <Route path="/oracle-monitor" element={<OracleMonitor />} />
+                        <Route path="/positions/:id" element={<PositionDetail />} />
+                        <Route path="/portfolio" element={<Portfolio />} />
+                        <Route path="/admin" element={<Admin />} />
+                      </Routes>
+                    </main>
+                  </div>
                 </div>
-              </div>
-          </Router>
-                  </ThemeProvider>
-                      </TxProvider>
+              </Router>
+            </TxProvider>
+          </ThemeProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiConfig>
