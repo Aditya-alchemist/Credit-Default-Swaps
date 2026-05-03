@@ -1,3 +1,6 @@
+<img width="600" height="473" alt="image" src="https://github.com/user-attachments/assets/492b5a3a-c28a-47b5-9289-fd248598a61a" />
+
+
 # Credit Default Swaps (CDS) Protocol - Comprehensive Documentation
 
 ## Table of Contents
