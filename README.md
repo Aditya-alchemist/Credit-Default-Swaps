@@ -1342,8 +1342,7 @@ require(cdsVault.isActive(positionId), "Position not active");
 
 - **Issues**: GitHub Issues
 - **Discussions**: GitHub Discussions
-- **Telegram**: [Join Community]
-- **Twitter**: [@CDSProtocol]
+
 
 ---
 
@@ -1356,10 +1355,9 @@ MIT License - See LICENSE file for details
 ## Authors
 
 - **Aditya**: Lead Protocol Designer
-- **Contributors**: Community developers and auditors
 
 ---
 
-**Last Updated**: May 3, 2024  
+**Last Updated**: May 3, 2026
 **Version**: 1.0.0-beta  
 **Status**: Testnet Active ✅
