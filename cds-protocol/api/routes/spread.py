@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/quote", tags=["quotes"])
 
@@ -36,5 +37,5 @@ async def get_cds_quote(
         "premium_rate": spread_bps / 10_000,
         "estimated_annual_cost": (notional * spread_bps) / 10_000,
         "currency": "USDC",
-        "quote_timestamp": "2026-05-03T12:00:00Z"
+        "quote_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }

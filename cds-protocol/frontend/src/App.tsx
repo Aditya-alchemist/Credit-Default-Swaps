@@ -18,6 +18,7 @@ import Admin from "./pages/Admin";
 import Portfolio from "./pages/Portfolio.tsx";
 import PositionDetail from "./pages/PositionDetail";
 import OracleMonitor from "./pages/OracleMonitor";
+import Documentation from "./pages/Documentation";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ export default function App() {
                         <Route path="/oracle-monitor" element={<OracleMonitor />} />
                         <Route path="/positions/:id" element={<PositionDetail />} />
                         <Route path="/portfolio" element={<Portfolio />} />
+                        <Route path="/documentation" element={<Documentation />} />
                         <Route path="/admin" element={<Admin />} />
                       </Routes>
                     </main>

@@ -2,6 +2,7 @@ import React from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { useLocation, Link } from "react-router-dom";
 import { IconImage } from "../IconImage";
+import { ExternalLink } from "lucide-react";
 
 interface NavItem {
   label: string;
@@ -22,7 +23,7 @@ const MAIN_PAGES: NavItem[] = [
 ];
 
 const SUPPORT: NavItem[] = [
-  { label: "Documentation", path: "#", icon: "docs" },
+  { label: "Documentation", path: "/documentation", icon: "docs" },
   { label: "Support", path: "#", icon: "support" },
 ];
 
@@ -63,6 +64,19 @@ export const Sidebar: React.FC = () => {
     </Link>
   );
 
+  const ExternalNavItem: React.FC<{ label: string; url: string }> = ({ label, url }) => (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${textClass}`}
+    >
+      <ExternalLink className="h-6 w-6 shrink-0" />
+      <span className="text-sm font-medium">{label}</span>
+      <span className="text-xl ml-auto opacity-50">&gt;</span>
+    </a>
+  );
+
   return (
     <div className={`w-64 h-screen border-r ${bgClass} overflow-y-auto fixed left-0 top-0 pt-20 pb-6 px-4 space-y-6 hidden lg:block`}>
       {/* Pages Section */}
@@ -86,6 +100,27 @@ export const Sidebar: React.FC = () => {
           {SUPPORT.map((item) => (
             <NavItemComponent key={`${item.path}-${item.label}`} item={item} />
           ))}
+          
+          {/* GitHub Links */}
+          <div className="border-t border-slate-300 dark:border-slate-600 pt-3 mt-3">
+            <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${theme === "dark" ? "text-slate-500" : "text-slate-400"}`}>
+              GITHUB
+            </p>
+            <div className="space-y-2">
+              <ExternalNavItem 
+                label="Repository" 
+                url="https://github.com/Aditya-alchemist/Credit-Default-Swaps" 
+              />
+              <ExternalNavItem 
+                label="Report Issue" 
+                url="https://github.com/Aditya-alchemist/Credit-Default-Swaps/issues" 
+              />
+              <ExternalNavItem 
+                label="Discussions" 
+                url="https://github.com/Aditya-alchemist/Credit-Default-Swaps/discussions" 
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

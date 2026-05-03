@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
   const totalBorrowed = poolStats.totalBorrowed.data ? Number(formatUnits(BigInt(poolStats.totalBorrowed.data as any), 6)) : 0;
   const availableLiquidity = poolStats.availableLiquidity.data ? Number(formatUnits(BigInt(poolStats.availableLiquidity.data as any), 6)) : 0;
   const utilizationBps = poolStats.utilizationRate.data ? Number(poolStats.utilizationRate.data) : 0;
-  const totalOpenPositions = totalPositions.data ? Number(totalPositions.data) : 0;
+  const totalOpenPositions = totalPositions.data ? Math.max(0, Number(totalPositions.data) - 1) : 0;
   const protocolTvl = totalSupplied;
   const ownerAddress = vaultOwner.data ? String(vaultOwner.data) : SEPOLIA_ADDRESSES.CDSVault;
   const receiverAddress = premiumReceiver.data ? String(premiumReceiver.data) : SEPOLIA_ADDRESSES.CDSVault;

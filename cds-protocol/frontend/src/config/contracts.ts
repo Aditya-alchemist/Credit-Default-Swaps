@@ -132,6 +132,13 @@ export const CDS_VAULT_ABI = [
     type: "function",
   },
   {
+    inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
+    name: "getCollateralRatio",
+    outputs: [{ internalType: "uint256", name: "ratioBps", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [
       { internalType: "address", name: "buyer", type: "address" },
       { internalType: "address", name: "seller", type: "address" },
@@ -481,10 +488,11 @@ export const LENDING_POOL_ABI = [
   },
   {
     inputs: [
-      { internalType: "uint256", name: "amount", type: "uint256" },
+      { internalType: "uint256", name: "supplyId", type: "uint256" },
+      { internalType: "uint256", name: "lTokenAmount", type: "uint256" },
     ],
     name: "withdraw",
-    outputs: [],
+    outputs: [{ internalType: "uint256", name: "usdcOut", type: "uint256" }],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -516,6 +524,20 @@ export const LENDING_POOL_ABI = [
     name: "repay",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "nextSupplyId",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "nextLoanId",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
     type: "function",
   },
   {

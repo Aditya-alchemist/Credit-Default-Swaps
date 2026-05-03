@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -21,5 +22,5 @@ async def get_entity_health(entity: str) -> Dict:
         "recovery_bps": 4000,
         "default_probability": 2.0,
         "status": "healthy",
-        "last_updated": "2026-05-03T12:00:00Z"
+        "last_updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }

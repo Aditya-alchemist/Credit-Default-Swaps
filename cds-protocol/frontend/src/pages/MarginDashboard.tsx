@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useReadContracts } from "wagmi";
+import { useReadContracts, usePublicClient, useWriteContract } from "wagmi";
 import {
   Area,
   AreaChart,
@@ -17,7 +17,6 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import { IconImage } from "../components/IconImage";
 import { useTotalPositions } from "../hooks/useCDSVault";
-import { useCheckAndFlag, useLiquidatePosition } from "../hooks/useMarginEngine";
 import { useTx } from "../context/TxContext";
 import { CDS_VAULT_ABI, MARGIN_ENGINE_ABI, SEPOLIA_ADDRESSES } from "../config/contracts";
 import { formatAddress, formatDateTime, formatNumber, formatTimeRemaining } from "../utils/formatters";
@@ -48,10 +47,10 @@ const stateLabel = (state: number) => state === 0 ? "Active" : state === 1 ? "Ma
 const MarginDashboard: React.FC = () => {
   const { theme } = useTheme();
   const { notifyPending, notifySuccess, notifyError } = useTx();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
   const totalPositions = useTotalPositions();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const checkAndFlag = useCheckAndFlag(selectedId ?? undefined);
-  const liquidate = useLiquidatePosition(selectedId ?? undefined);
 
   const totalOpenPositions = totalPositions.data ? Number(totalPositions.data) : 0;
   const positionIds = Array.from({ length: Math.min(totalOpenPositions, 80) }, (_, index) => BigInt(index + 1));
@@ -182,7 +181,13 @@ const MarginDashboard: React.FC = () => {
     if (!selectedPosition) return;
     const id = notifyPending(`Checking margin #${selectedPosition.id}`);
     try {
-      await checkAndFlag.write.writeAsync();
+      const hash = await writeContractAsync({
+        address: SEPOLIA_ADDRESSES.MarginEngine,
+        abi: MARGIN_ENGINE_ABI,
+        functionName: "checkAndFlag",
+        args: [BigInt(selectedPosition.id)],
+      });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       notifySuccess(id, `Margin #${selectedPosition.id} checked`);
     } catch (error) {
       notifyError(id, error instanceof Error ? error.message : "Margin check failed");
@@ -193,7 +198,13 @@ const MarginDashboard: React.FC = () => {
     if (!selectedPosition) return;
     const id = notifyPending(`Liquidating #${selectedPosition.id}`);
     try {
-      await liquidate.write.writeAsync();
+      const hash = await writeContractAsync({
+        address: SEPOLIA_ADDRESSES.MarginEngine,
+        abi: MARGIN_ENGINE_ABI,
+        functionName: "liquidatePosition",
+        args: [BigInt(selectedPosition.id)],
+      });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       notifySuccess(id, `Position #${selectedPosition.id} liquidated`);
     } catch (error) {
       notifyError(id, error instanceof Error ? error.message : "Liquidation failed");

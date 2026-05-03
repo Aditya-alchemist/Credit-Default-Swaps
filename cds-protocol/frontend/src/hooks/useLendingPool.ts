@@ -20,7 +20,7 @@ export const useTotalPositions = () => {
   return useReadContract({
     address: SEPOLIA_ADDRESSES.LendingPool,
     abi: LENDING_POOL_ABI,
-    functionName: "getTotalPositions",
+    functionName: "nextLoanId",
   });
 };
 
@@ -113,19 +113,19 @@ export const useDeposit = (amount?: number | bigint) => {
 };
 
 // Write: Withdraw USDC from lending pool
-export const useWithdraw = (amount?: number | bigint) => {
+export const useWithdraw = (supplyId?: number | bigint, lTokenAmount?: number | bigint) => {
   const { writeContractAsync } = useWriteContract();
   return {
     write: {
       writeAsync: async () => {
-        if (amount === undefined) {
-          throw new Error("Withdrawal amount is required");
+        if (supplyId === undefined || lTokenAmount === undefined) {
+          throw new Error("Supply ID and lToken amount are required");
         }
         return writeContractAsync({
           address: SEPOLIA_ADDRESSES.LendingPool,
           abi: LENDING_POOL_ABI,
           functionName: "withdraw",
-          args: [BigInt(amount)],
+          args: [BigInt(supplyId), BigInt(lTokenAmount)],
         });
       },
     },
@@ -153,19 +153,19 @@ export const useBorrow = (collateralAmount?: number | bigint, borrowAmount?: num
 };
 
 // Write: Repay USDC loan
-export const useRepay = (loanId?: number, amount?: number | bigint) => {
+export const useRepay = (loanId?: number) => {
   const { writeContractAsync } = useWriteContract();
   return {
     write: {
       writeAsync: async () => {
-        if (loanId === undefined || amount === undefined) {
-          throw new Error("Loan ID and amount are required");
+        if (loanId === undefined) {
+          throw new Error("Loan ID is required");
         }
         return writeContractAsync({
           address: SEPOLIA_ADDRESSES.LendingPool,
           abi: LENDING_POOL_ABI,
           functionName: "repay",
-          args: [BigInt(loanId), BigInt(amount)],
+          args: [BigInt(loanId)],
         });
       },
     },

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { decodeEventLog, isAddress, parseUnits } from "viem";
 import { formatUnits } from "viem";
 import { formatUsdc, formatNumber } from "../utils/formatters";
-import { useDeposit, useBorrow, useRepay } from "../hooks/useLendingPool";
+import { useDeposit, useBorrow, useLoanPosition, useRepay, useWithdraw } from "../hooks/useLendingPool";
 import { useApprovalNeeded, useApproveToken } from "../hooks/useERC20";
 import { useTx } from "../context/TxContext";
 import { LENDING_POOL_ABI, SEPOLIA_ADDRESSES } from "../config/contracts";
@@ -14,7 +14,7 @@ import { usePoolStats } from "../hooks/useLendingPool";
 const LendingPool: React.FC = () => {
   const { theme } = useTheme();
   const { address, isConnected } = useAccount();
-  const [activeTab, setActiveTab] = useState<"supply" | "borrow">("supply");
+  const [activeTab, setActiveTab] = useState<"supply" | "borrow" | "withdraw">("supply");
   const poolStats = usePoolStats();
 
   const totalSupplied = poolStats.totalSupplied.data ? Number(formatUnits(BigInt(poolStats.totalSupplied.data as any), 6)) : 0;
@@ -91,12 +91,26 @@ const LendingPool: React.FC = () => {
                 >
                   Borrow
                 </button>
+                <button
+                  onClick={() => setActiveTab("withdraw")}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                    activeTab === "withdraw"
+                      ? "bg-orange-600 text-white"
+                      : theme === "dark"
+                        ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                  }`}
+                >
+                  Withdraw
+                </button>
               </div>
 
               {activeTab === "supply" ? (
                 <SupplyForm theme={theme} cardBgClass={cardBgClass} textClass={textClass} secondaryTextClass={secondaryTextClass} inputBgClass={inputBgClass} />
-              ) : (
+              ) : activeTab === "borrow" ? (
                 <BorrowForm theme={theme} cardBgClass={cardBgClass} textClass={textClass} secondaryTextClass={secondaryTextClass} inputBgClass={inputBgClass} />
+              ) : (
+                <WithdrawForm theme={theme} cardBgClass={cardBgClass} textClass={textClass} secondaryTextClass={secondaryTextClass} inputBgClass={inputBgClass} />
               )}
             </div>
           </div>
@@ -382,6 +396,22 @@ const BorrowForm: React.FC<FormProps> = ({ theme, cardBgClass, textClass, second
   );
   const repayIdNum = repayLoanId ? Number(repayLoanId) : undefined;
   const { prepare: repayPrepare, write: repayWrite } = useRepay(repayIdNum);
+  const repayLoan = useLoanPosition(repayIdNum);
+  const repayLoanData = repayLoan.data as any;
+  const repayOwed =
+    repayLoanData && repayIdNum
+      ? BigInt(repayLoanData.loanAmount ?? repayLoanData[1] ?? 0) + BigInt(repayLoanData.accruedInterest ?? repayLoanData[6] ?? 0)
+      : 0n;
+  const { isNeeded: needsRepayApproval } = useApprovalNeeded(
+    SEPOLIA_ADDRESSES.USDC,
+    SEPOLIA_ADDRESSES.LendingPool,
+    repayOwed > 0n ? repayOwed : undefined
+  );
+  const repayApproval = useApproveToken(
+    repayOwed > 0n
+      ? { tokenAddress: SEPOLIA_ADDRESSES.USDC, spender: SEPOLIA_ADDRESSES.LendingPool, amount: repayOwed }
+      : undefined
+  );
 
   return (
     <div className="space-y-4">
@@ -486,6 +516,10 @@ const BorrowForm: React.FC<FormProps> = ({ theme, cardBgClass, textClass, second
           onClick={async () => {
             try {
               const id = notifyPending("Repaying loan");
+              if (needsRepayApproval) {
+                const approveHash = await repayApproval.write.writeAsync();
+                if (publicClient) await publicClient.waitForTransactionReceipt({ hash: approveHash });
+              }
               if (!repayWrite?.writeAsync) throw new Error("contract not ready");
               const hash = await repayWrite.writeAsync();
               if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
@@ -499,9 +533,79 @@ const BorrowForm: React.FC<FormProps> = ({ theme, cardBgClass, textClass, second
           }}
           className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition"
         >
-          Repay
+          {needsRepayApproval ? "Approve + Repay" : "Repay"}
         </button>
       </div>
+    </div>
+  );
+};
+
+const WithdrawForm: React.FC<FormProps> = ({ theme, textClass, secondaryTextClass, inputBgClass }) => {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { notifyPending, notifySuccess, notifyError } = useTx();
+  const [supplyId, setSupplyId] = useState("");
+  const [lTokenAmount, setLTokenAmount] = useState("");
+  const supplyIdNum = supplyId ? Number(supplyId) : undefined;
+  const lTokenUnits = lTokenAmount ? parseUnits(lTokenAmount, 6) : 0n;
+  const { write } = useWithdraw(supplyIdNum, lTokenUnits > 0n ? lTokenUnits : undefined);
+  const lenderSupplies = useReadContract({
+    address: SEPOLIA_ADDRESSES.LendingPool,
+    abi: LENDING_POOL_ABI,
+    functionName: "getLenderSupplies",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+  const supplyOptions = Array.isArray(lenderSupplies.data)
+    ? lenderSupplies.data.map((value) => BigInt(value as any))
+    : [];
+
+  return (
+    <div className="space-y-4">
+      <h3 className={`text-lg font-semibold ${textClass} mb-4`}>Withdraw Supplied Funds</h3>
+      <div>
+        <label className={`block text-sm font-medium ${textClass} mb-2`}>Supply ID</label>
+        <select
+          value={supplyId}
+          onChange={(event) => setSupplyId(event.target.value)}
+          className={`w-full px-4 py-2 rounded-lg border ${inputBgClass} ${textClass} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        >
+          <option value="">Select supply position</option>
+          {supplyOptions.map((id) => (
+            <option key={String(id)} value={String(id)}>Supply #{String(id)}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className={`block text-sm font-medium ${textClass} mb-2`}>lTokens to Burn</label>
+        <input
+          type="number"
+          value={lTokenAmount}
+          onChange={(event) => setLTokenAmount(event.target.value)}
+          placeholder="Amount of lTokens"
+          className={`w-full px-4 py-2 rounded-lg border ${inputBgClass} ${textClass} placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        />
+        <p className={`text-xs ${secondaryTextClass} mt-1`}>
+          Withdraw burns lTokens from the selected supply position and returns the matching pool USDC if liquidity is available.
+        </p>
+      </div>
+      <button
+        onClick={async () => {
+          try {
+            if (!supplyIdNum) throw new Error("Select a supply position");
+            if (lTokenUnits <= 0n) throw new Error("Enter lTokens to burn");
+            const id = notifyPending("Withdrawing supplied funds");
+            const hash = await write.writeAsync();
+            if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+            notifySuccess(id, "Withdrawal confirmed", { txHash: hash, explorerUrl: getExplorerUrl(hash) });
+          } catch (error: any) {
+            notifyError(Date.now(), extractErrorMessage(error));
+          }
+        }}
+        className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition"
+      >
+        Withdraw Funds
+      </button>
     </div>
   );
 };

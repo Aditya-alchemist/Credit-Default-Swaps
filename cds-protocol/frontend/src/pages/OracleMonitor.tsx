@@ -65,7 +65,7 @@ const OracleMonitor: React.FC = () => {
       functionName: "getPosition",
       args: [positionId],
     })),
-    query: { enabled: positionIds.length > 0 },
+    query: { enabled: positionIds.length > 0, refetchInterval: 30_000 },
   });
 
   const entityStats = useMemo(() => {
@@ -108,7 +108,7 @@ const OracleMonitor: React.FC = () => {
         args: [entity.address],
       },
     ]),
-    query: { enabled: entityStats.length > 0 },
+    query: { enabled: entityStats.length > 0, refetchInterval: 30_000 },
   });
 
   const entities: OracleEntity[] = entityStats.map((entity, index) => {

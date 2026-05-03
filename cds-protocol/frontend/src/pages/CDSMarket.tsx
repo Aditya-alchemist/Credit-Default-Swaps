@@ -11,7 +11,7 @@ import { useApprovalNeeded, useApproveToken } from "../hooks/useERC20";
 import { useTx } from "../context/TxContext";
 import ConfirmTxModal from "../components/ConfirmTxModal";
 import { formatGasEstimate, getExplorerUrl, extractErrorMessage } from "../utils/txHelpers";
-import { SEPOLIA_ADDRESSES, CDS_VAULT_ABI, PREMIUM_ENGINE_ABI } from "../config/contracts";
+import { SEPOLIA_ADDRESSES, CDS_VAULT_ABI, PREMIUM_ENGINE_ABI, ERC20_ABI } from "../config/contracts";
 
 interface CDSPosition {
   id: string;
@@ -140,13 +140,26 @@ const CDSMarket: React.FC = () => {
     return (collateral / notional) * 100;
   };
 
-  const payPremiumForPosition = async (positionId: number) => {
+  const payPremiumForPosition = async (position: CDSPosition) => {
     if (!isConnected) throw new Error("Connect your wallet first");
+    if (!address || position.buyer.toLowerCase() !== address.toLowerCase()) {
+      throw new Error("Only the protection buyer can pay this premium");
+    }
+    const premiumAmount = (parseUnits(position.purchased, 6) * BigInt(position.spread) * 90n) / (10000n * 365n);
+    const approveHash = await writeContractAsync({
+      address: SEPOLIA_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [SEPOLIA_ADDRESSES.PremiumEngine, premiumAmount],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    }
     const txHash = await writeContractAsync({
       address: SEPOLIA_ADDRESSES.PremiumEngine,
       abi: PREMIUM_ENGINE_ABI,
       functionName: "collectPremium",
-      args: [BigInt(positionId)],
+      args: [BigInt(position.id)],
     });
     if (publicClient) {
       await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -154,9 +167,12 @@ const CDSMarket: React.FC = () => {
     return txHash;
   };
 
-  const topUpPosition = async (positionId: number) => {
+  const topUpPosition = async (position: CDSPosition) => {
     if (!isConnected) throw new Error("Connect your wallet first");
-    const rawAmount = window.prompt(`Additional collateral for CDS #${positionId} (USDC)`, "0");
+    if (!address || position.seller.toLowerCase() !== address.toLowerCase()) {
+      throw new Error("Only the protection seller can top up collateral");
+    }
+    const rawAmount = window.prompt(`Additional collateral for CDS #${position.id} (USDC)`, "0");
     if (!rawAmount) return;
     const amount = Number(rawAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -164,11 +180,20 @@ const CDSMarket: React.FC = () => {
     }
 
     const amountUnits = parseUnits(rawAmount, 6);
+    const approveHash = await writeContractAsync({
+      address: SEPOLIA_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [SEPOLIA_ADDRESSES.CDSVault, amountUnits],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    }
     const txHash = await writeContractAsync({
       address: SEPOLIA_ADDRESSES.CDSVault,
       abi: CDS_VAULT_ABI,
       functionName: "topUpCollateral",
-      args: [BigInt(positionId), amountUnits],
+      args: [BigInt(position.id), amountUnits],
     });
     if (publicClient) {
       await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -413,7 +438,7 @@ const CDSMarket: React.FC = () => {
                   onClick={async () => {
                     try {
                       const id = notifyPending(`Paying premium for CDS #${position.id}`);
-                      const hash = await payPremiumForPosition(Number(position.id));
+                      const hash = await payPremiumForPosition(position);
                       notifySuccess(id, `Premium paid for CDS #${position.id}`, { txHash: hash, explorerUrl: getExplorerUrl(hash) });
                     } catch (error: any) {
                       notifyError(Date.now(), extractErrorMessage(error));
@@ -427,7 +452,7 @@ const CDSMarket: React.FC = () => {
                   onClick={async () => {
                     try {
                       const id = notifyPending(`Topping up CDS #${position.id}`);
-                      const hash = await topUpPosition(Number(position.id));
+                      const hash = await topUpPosition(position);
                       if (hash) {
                         notifySuccess(id, `Collateral topped up for CDS #${position.id}`, { txHash: hash, explorerUrl: getExplorerUrl(hash) });
                       }
