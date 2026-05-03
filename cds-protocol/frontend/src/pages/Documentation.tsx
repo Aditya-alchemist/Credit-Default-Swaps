@@ -250,7 +250,7 @@ const Documentation = () => {
                   Health Factor = (Collateral × Collateral Factor (bps)) / Total Debt Owed
                 </code>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Minimum: > 1.0. Collateral factor: 8,000 bps (80%)
+                  Minimum: &gt; 1.0. Collateral factor: 8,000 bps (80%)
                 </p>
               </div>
             </div>
